@@ -1,0 +1,17 @@
+six
+ply
+python-decouple
+tqdm
+polylabel-pyo3
+pandas
+seaborn
+scipy
+sigfig
+rdp
+fil-finder
+scikit-learn
+opencv-python
+colorhash
+tensorflow
+natsort
+MKUtils @ git+https://github.com/mkals/MKUtils.git

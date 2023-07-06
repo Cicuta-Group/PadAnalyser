@@ -1,0 +1,2 @@
+global-include *.xml *.json
+recursive-include src/ *.py

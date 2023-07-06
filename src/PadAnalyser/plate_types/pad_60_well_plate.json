@@ -1,0 +1,18 @@
+{
+    "well_count": 60,
+    
+    "size_x": 5e3,
+    "size_y": 5e3,
+    
+    "grid_pitch_x": 9e3,
+    "grid_pitch_y": 9e3,
+    
+    "feducial_offset_x": -40.5e3,
+    "feducial_offset_y": -22.5e3,
+    
+    "first_col": 1,
+    "last_col": 10,
+    
+    "first_row": "A",
+    "last_row": "F"
+}
