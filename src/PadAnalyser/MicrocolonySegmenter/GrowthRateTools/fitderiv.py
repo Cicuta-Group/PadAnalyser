@@ -1,6 +1,6 @@
 import numpy as np
-import MKImageAnalysis.gaussianprocess as gp
 import matplotlib.pyplot as plt
+import gaussianprocess as gp
 
 
 ######

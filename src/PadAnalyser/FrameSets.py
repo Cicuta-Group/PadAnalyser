@@ -1,56 +1,56 @@
 
+from typing import List, Union
+from PIL import Image
 import numpy as np
+# import abstract base class
+# from abc import abc # TODO: how to make abstract class
 Frame = np.ndarray
 
-from typing import Touple, List, Union
 
 # Interface for sets of frames to be analyzed as a timelapse. 
 # Objects that contain the time-lapse information for a given field of view. Can include z-stacks or not. 
 
 class FrameSet:
-    def getNextFrame() -> Touple[Frame, int]: # returns frame and time in seconds
+    
+    ### Methods subclasses should implement
+
+    
+    def __init__(self, image_type: str, metadata: dict = None): # initializer that enables user to spesify the data for this frame set
+        self.image_type = image_type 
+        self.metadata = metadata
+    
+    def get_frame(self, index: int) -> Frame: 
         pass
     
-    def getTimestamps() -> List[int]: # returns list of timestamps in seconds
+    def get_time(self, index: int) -> int: # returns list of timestamps in seconds
         pass
     
-    def getFrameCount() -> int:
-        pass
-
-
-
-class TiffFrameSet(FrameSet):
-
-    def __init__(self, file_paths: Union[List[str], List[List[str]]], times_in_seconds: List[int]): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
-        self.filenames = file_paths
-        self.times = times_in_seconds
-
-    def getNextFrame() -> Touple[Frame, int]: # returns frame and time in seconds
+    def get_frame_count(self) -> int:
         pass
     
-    def getTimestamps() -> List[int]: # returns list of timestamps in seconds
-        pass
 
-    def getFrameCount() -> int:
-        pass
-
-
-    def get_frame(self, i):
-        return np.array(Image.open(self.image_paths[i]))
+    ### Methods that allow users to interact with subclasses thourgh iterators etc.
     
-    def __len__(self):
-        return len(self.image_paths)
+    def get_frame_and_time(self, index: int): # -> Tuple[Frame, int]
+        return (self.get_frame(index), self.get_time(index))
+
+    # enables checking length with len(frameSetInstance)
+    def __len__(self) -> int:
+        return self.get_frame_count()
     
-    # enables access to frames using square brackets
-    def __getitem__(self, key):
-        if isinstance(key, slice):
+    # enables access to frames and time touple using square brackets
+    def __getitem__(self, key: int):
+        if isinstance(key, int):
+            return self.get_frame_and_time(key)
+
+        elif isinstance(key, slice):
             # Get the start, stop, and step from the slice
-            return [self.get_frame(ii) for ii in range(*key.indices(len(self)))]
-        elif isinstance(key, int):
-            return self.get_frame(key)
+            return [self.get_frame_and_time(ii) for ii in range(*key.indices(len(self)))]
+        
         else:
-            raise TypeError
+            raise TypeError(f'Could not rexognize iterator key {key} for {str(self)}. Must be int or slice, is {type(key)}.')
 
+    # init iterator so you can loop over objects in memory efficient manner
     def __iter__(self):
         self._iterator_count = 0
         return self
@@ -59,12 +59,37 @@ class TiffFrameSet(FrameSet):
     def __next__(self):
         if self._iterator_count < len(self):
             self._iterator_count += 1
-            return self[self._iterator_count]
+            return self[self._iterator_count-1] # start at zero
         else:
             raise StopIteration
 
-    def frame_time(self, i, true_time=False) -> float:
-        return i/30
+
+
+class TiffFrameSet(FrameSet):
+
+    def __init__(self, file_paths: Union[List[str], List[List[str]]], times_in_seconds: List[int], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
+        if len(file_paths) != len(times_in_seconds):
+            raise Exception(f"Number of files {len(file_paths)} different from number of times {len(times_in_seconds)}")
+        
+        self.filenames = file_paths
+        self.times = times_in_seconds
+        super().__init__(**kwargs)
+
+
+    def get_frame(self, index: int) -> Frame: # -> Tuple[Frame, int]: # returns frame and time in seconds
+        return np.array(Image.open(self.filenames[index]))
+    
+    def get_time(self, index: int) -> int: # returns list of timestamps in seconds
+        return self.times[index]
+
+    def get_frame_count(self) -> int:
+        return len(self.times)
+
+    def __str__(self) -> str:
+        return f'TiffFrameSet with {len(self.times)} frames'
+
+    def __repr__(self) -> str:
+        return f'TiffFrameSet(frame=[{self.filenames[0]}, ...], times=[{self.times[0]}, ...])'
 
 
 
