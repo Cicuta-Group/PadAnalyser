@@ -273,20 +273,7 @@ def main(experiment, n_lim, m_lim, all_ignore_cache, debug_output, tiff_start_in
     pad_names = points['pad_name']
     labels = [f'{experiment}_{i}_{p.strip()}_{fl_br_label}' for i, p in enumerate(pad_names)]
     
-    # Segment or load dataframe from cache
-    df = generate_dataframe(
-        movie_file_path = movie_file_path, 
-        output_dir = output_dir, 
-        experiment = experiment, 
-        all_index_series = all_index_series, 
-        labels = labels, 
-        pad_names = pad_names, 
-        experiment_map = experiment_map, 
-        dataframe_file = dataframe_file, 
-        use_cache = not all_ignore_cache,
-        mask_folder = mask_dir,
-        dinfo = dinfo, 
-    )
+
 
     PlotPads.main(experiment=experiment, df=df)
 

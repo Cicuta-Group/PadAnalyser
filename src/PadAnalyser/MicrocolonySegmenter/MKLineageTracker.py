@@ -2,8 +2,7 @@ import cv2 as cv
 from collections import defaultdict
 import numpy as np
 
-from MKImageAnalysis.MKSegmentUtils import norm, id_from_frame_and_outline, plot_frame
-
+from .MKSegmentUtils import norm, id_from_frame_and_outline, plot_frame
 
 
 def parent_ID(ID):

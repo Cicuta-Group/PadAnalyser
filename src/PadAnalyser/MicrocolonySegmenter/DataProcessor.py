@@ -4,55 +4,53 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-from decouple import config
+import DataUtils, MKSegmentUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
 
-from MKImageAnalysis import Plotter, DataUtils, MKSegmentUtils, experiment_folder_name, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
-from TemikaXML.SamplePlatform import Pad_384_Well_Plate as Pad
-try:
-    from MKImageAnalysis import CellClassifier
-except ImportError:
-    print('Could not import CellClassifier')
+# try:
+#     import CellClassifier
+# except ImportError:
+#     print('Could not import CellClassifier')
 
 SERIES_KEY = 'labelid'
 
 # inplace manipulation of dataframe to make ready for plotting
-def process_dataframe(df, experiment_map):
+# def process_dataframe(df, experiment_map):
 
-    numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
-    logging.debug(f'{numeric_keys=}, {text_keys=}')
+#     # numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
+#     logging.debug(f'{numeric_keys=}, {text_keys=}')
     
-    # Filter rows
-    df.query('id >= 0', inplace=True) # remove all without id
+#     # Filter rows
+#     df.query('id >= 0', inplace=True) # remove all without id
     
-    # Add and manipulate columns
-    df['ss_area_total'] = df['ss_area_mean'].mul(df['ss_area_count'])
+#     # Add and manipulate columns
+#     df['ss_area_total'] = df['ss_area_mean'].mul(df['ss_area_count'])
     
-    add_label_columns(df=df, experiment_map=experiment_map) # add labels desribing experiment (antibiotic etc.)
-    add_replicate_column(df=df, keys=numeric_keys+text_keys)
-    add_time_bin_column(df=df, interval=30)
+#     add_label_columns(df=df, experiment_map=experiment_map) # add labels desribing experiment (antibiotic etc.)
+#     add_replicate_column(df=df, keys=numeric_keys+text_keys)
+#     add_time_bin_column(df=df, interval=30)
     
-    # low_pass_filter_column(df=df, column='colony_area')
-    # low_pass_filter_column(df=df, column='ss_area_total')
-    # low_pass_filter_column(df=df, column='ss_area_count')
-    add_growth_rate_time_series_columns(df=df, fit_to_key='colony_area')
-    add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_total')
-    add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_count')
+#     # low_pass_filter_column(df=df, column='colony_area')
+#     # low_pass_filter_column(df=df, column='ss_area_total')
+#     # low_pass_filter_column(df=df, column='ss_area_count')
+#     add_growth_rate_time_series_columns(df=df, fit_to_key='colony_area')
+#     add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_total')
+#     add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_count')
 
-    if not 'ss_area_total_growth_rate' in df.columns: return
+#     if not 'ss_area_total_growth_rate' in df.columns: return
 
-    add_termination_marker_columns(df=df)
+#     add_termination_marker_columns(df=df)
 
-    add_colony_lysis_columns(df)
-    add_present_for_duration_column(df)
+#     add_colony_lysis_columns(df)
+#     add_present_for_duration_column(df)
 
-    # Filtering that can only be done at the end
-    # df.query('colony_on_border == False', inplace=True)
-    # df.dropna(subset=[COLONY_GROWTH_RATE_KEY], inplace=True) # has all fields filled
+#     # Filtering that can only be done at the end
+#     # df.query('colony_on_border == False', inplace=True)
+#     # df.dropna(subset=[COLONY_GROWTH_RATE_KEY], inplace=True) # has all fields filled
     
-    CellClassifier.add_is_debris_score_column(df=df)
+#     CellClassifier.add_is_debris_score_column(df=df)
 
 
-def dataframe_from_data_series(data, round_times, experiment, experiment_map, segmentation_version, process=True):
+def dataframe_from_data_series(data, metadata):
     
     keys = ['colony_area', 'colony_arc_length', 'colony_on_border', 'colony_id', 'colony_ID', 'colony_name'] # for all keys, see MKTImeseriesAnalyzer EOF
     ss_keys = MKSegmentUtils.SS_STATS_KEYS
@@ -84,14 +82,17 @@ def dataframe_from_data_series(data, round_times, experiment, experiment_map, se
             ss_stats = ss_df.describe()
 
             ss_dict = {f'{col_name}_{stat}': value for col_name, col in ss_stats.items() for stat, value in col.items()}
+            
+            interval = 60*15
+            round_time = int(time//interval)*interval # bin to every 15 min - todo: update? 
 
             row = {
                 'time': time, # seconds
                 'time_hours': time/60/60, # hours
                 'time_days': time/60/60/24, # days
-                'round_time': round_times[i], # sec
-                'round_time_hours': round_times[i]/60/60, # hour
-                'round_time_days': round_times[i]/60/60/24, # days
+                'round_time': round_time, # sec
+                'round_time_hours': round_time/60/60, # hour
+                'round_time_days': round_time/60/60/24, # days
                 'pad_name': pad_name,
                 'row': pad.row,
                 'col': pad.col,
@@ -100,7 +101,7 @@ def dataframe_from_data_series(data, round_times, experiment, experiment_map, se
                 SERIES_KEY: f'{label}_{id}',
                 'time_index': i,
                 'id_index': j,
-                'experiment': experiment,
+                **metadata,
                 **{key: val for key, val in zip(keys, peroperties)},
                 **ss_dict,
             }
@@ -108,9 +109,10 @@ def dataframe_from_data_series(data, round_times, experiment, experiment_map, se
             if df.empty: df = pd.DataFrame(columns=row.keys()) # add column names first round
             df.loc[df.shape[0]] = row.values()
 
-    if process and not df.empty: 
-        # process dataframe from threading jobs - makes this multiprocessed as well
-        process_dataframe(df=df, experiment_map=experiment_map)
+    # TODO: how to deal with experiment_map? 
+    # if process and not df.empty: 
+    #     # process dataframe from threading jobs - makes this multiprocessed as well
+    #     process_dataframe(df=df, experiment_map=experiment_map)
 
     return df
 
@@ -126,15 +128,15 @@ def load_df_from_file(dataframe_file):
     except Exception:
         logging.exception(f'Could not load dataframe {dataframe_file}.')
 
-def load_stats_dataframe(experiment: str):
-    data_folder = config('OUTPUT_DIRECTORY')
-    dataframe_file = os.path.join(data_folder, experiment_folder_name(experiment), f'graphs_{PLOT_VERSION}', f'{experiment} growth rate stats.json')
-    return load_df_from_file(dataframe_file)
+# def load_stats_dataframe(experiment: str):
+#     data_folder = config('OUTPUT_DIRECTORY')
+#     dataframe_file = os.path.join(data_folder, experiment_folder_name(experiment), f'graphs_{PLOT_VERSION}', f'{experiment} growth rate stats.json')
+#     return load_df_from_file(dataframe_file)
 
-def load_dataframe(experiment: str, segmentation_version=SEGMENTATION_VERSION, dataframe_version=DATAFRAME_VERSION):
-    data_folder = config('OUTPUT_DIRECTORY')
-    dataframe_file = os.path.join(data_folder, experiment_folder_name(experiment, segmentation_version), f'dataframe_{dataframe_version}.json')
-    return load_df_from_file(dataframe_file)
+# def load_dataframe(experiment: str, segmentation_version=SEGMENTATION_VERSION, dataframe_version=DATAFRAME_VERSION):
+#     data_folder = config('OUTPUT_DIRECTORY')
+#     dataframe_file = os.path.join(data_folder, experiment_folder_name(experiment, segmentation_version), f'dataframe_{dataframe_version}.json')
+#     return load_df_from_file(dataframe_file)
 
 def replace_col_name(df, old_name, new_name):
     if old_name in df.columns:
@@ -144,50 +146,50 @@ def replace_col_name(df, old_name, new_name):
             df[new_name] = df[old_name]
 
 
-def load_experiments(experiments: list[str], segmentation_version=SEGMENTATION_VERSION, dataframe_version=DATAFRAME_VERSION, repeat_keys=None):
-    experiment_maps = [Plotter.mapping_for_experiment(experiment=experiment) for experiment in experiments]
-    numeric_keys_lists, text_keys_lists = zip(*[Plotter.find_numeric_and_text_keys(experiment_map=experiment_map) for experiment_map in experiment_maps])
+# def load_experiments(experiments: list[str], segmentation_version=SEGMENTATION_VERSION, dataframe_version=DATAFRAME_VERSION, repeat_keys=None):
+#     experiment_maps = [Plotter.mapping_for_experiment(experiment=experiment) for experiment in experiments]
+#     numeric_keys_lists, text_keys_lists = zip(*[Plotter.find_numeric_and_text_keys(experiment_map=experiment_map) for experiment_map in experiment_maps])
 
-    numeric_keys = list(set([key for keys in numeric_keys_lists for key in keys]))
-    text_keys = list(set([key for keys in text_keys_lists for key in keys]))
+#     numeric_keys = list(set([key for keys in numeric_keys_lists for key in keys]))
+#     text_keys = list(set([key for keys in text_keys_lists for key in keys]))
     
-    dfs = [load_dataframe(experiment, segmentation_version, dataframe_version) for experiment in experiments]
-    dfs = [d for d in dfs if d is not None]
-    if len(dfs) == 0: raise ValueError(f'Could not load any dataframes for experiments {experiments}.')    
+#     dfs = [load_dataframe(experiment, segmentation_version, dataframe_version) for experiment in experiments]
+#     dfs = [d for d in dfs if d is not None]
+#     if len(dfs) == 0: raise ValueError(f'Could not load any dataframes for experiments {experiments}.')    
     
-    df = pd.concat(dfs, axis=0)
-    df.reset_index(inplace=True)
+#     df = pd.concat(dfs, axis=0)
+#     df.reset_index(inplace=True)
 
-    replace_col_name(df, 'Ampicilin concentration (µg/ml)', 'Ampicillin concentration (µg/ml)')
-    replace_col_name(df, 'Tetracyclin concentration (µg/ml)', 'Tetracycline concentration (µg/ml)')
+#     replace_col_name(df, 'Ampicilin concentration (µg/ml)', 'Ampicillin concentration (µg/ml)')
+#     replace_col_name(df, 'Tetracyclin concentration (µg/ml)', 'Tetracycline concentration (µg/ml)')
 
-    add_time_bin_column(df=df, interval=30) # cheap, so can do again here
-    add_repeat_column(df=df, numeric_keys=numeric_keys, text_keys=text_keys, repeat_keys=repeat_keys)
+#     add_time_bin_column(df=df, interval=30) # cheap, so can do again here
+#     add_repeat_column(df=df, numeric_keys=numeric_keys, text_keys=text_keys, repeat_keys=repeat_keys)
 
-    return df, numeric_keys, text_keys
+#     return df, numeric_keys, text_keys
 
 
-def load_experiments_stats(experiments):
-    experiment_map = Plotter.mapping_for_experiment(experiment=experiments[0])
-    numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
+# def load_experiments_stats(experiments):
+#     experiment_map = Plotter.mapping_for_experiment(experiment=experiments[0])
+#     numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
 
-    dfs = [load_stats_dataframe(e) for e in experiments]
-    dfs = [d for d in dfs if not isinstance(d, type(None))]
-    if len(dfs) == 0: raise ValueError(f'Could not load any dataframes for {experiments}')
+#     dfs = [load_stats_dataframe(e) for e in experiments]
+#     dfs = [d for d in dfs if not isinstance(d, type(None))]
+#     if len(dfs) == 0: raise ValueError(f'Could not load any dataframes for {experiments}')
     
-    df = pd.concat(dfs, axis=0)
-    df.reset_index(inplace=True)
-    return df, numeric_keys, text_keys
+#     df = pd.concat(dfs, axis=0)
+#     df.reset_index(inplace=True)
+#     return df, numeric_keys, text_keys
 
-def get_graph_folder(experiment: str, segmentation_version=None, plot_version=None):
+# def get_graph_folder(experiment: str, segmentation_version=None, plot_version=None):
     
-    if segmentation_version is None: segmentation_version = SEGMENTATION_VERSION
-    if plot_version is None: plot_version = PLOT_VERSION
+#     if segmentation_version is None: segmentation_version = SEGMENTATION_VERSION
+#     if plot_version is None: plot_version = PLOT_VERSION
 
-    if not isinstance(experiment, str): experiment = 'Set_' + '_'.join(experiment) # in case experiment is a list
-    output_directory = config('OUTPUT_DIRECTORY') # '/Users/mkals/Library/CloudStorage/OneDrive-UniversityofCambridge/data/'
-    output_directory = os.path.join(output_directory, experiment_folder_name(experiment, segmentation_version=segmentation_version))
-    return DataUtils.append_path(output_directory, f'graphs_{plot_version}')
+#     if not isinstance(experiment, str): experiment = 'Set_' + '_'.join(experiment) # in case experiment is a list
+#     output_directory = config('OUTPUT_DIRECTORY') # '/Users/mkals/Library/CloudStorage/OneDrive-UniversityofCambridge/data/'
+#     output_directory = os.path.join(output_directory, experiment_folder_name(experiment, segmentation_version=segmentation_version))
+#     return DataUtils.append_path(output_directory, f'graphs_{plot_version}')
 
 
 #### Condition mapping and information extraction
@@ -208,14 +210,14 @@ def condition_label(text_keys, text_values, numeric_key):
 
 
 
-def pad_labels_from_experiment_mapping(experiment_map):
-    output = {}
-    for label, conditions in experiment_map['condition_sets'].items():
-        pads_to_values = [(Pad.range(pad_range_key), value) for pad_range_key, value in conditions.items()]
-        c_mapping = {str(pad): value for pads, value in pads_to_values for pad in pads}
-        output[label] = c_mapping
+# def pad_labels_from_experiment_mapping(experiment_map):
+#     output = {}
+#     for label, conditions in experiment_map['condition_sets'].items():
+#         pads_to_values = [(Pad.range(pad_range_key), value) for pad_range_key, value in conditions.items()]
+#         c_mapping = {str(pad): value for pads, value in pads_to_values for pad in pads}
+#         output[label] = c_mapping
     
-    return output
+#     return output
 
 
 
@@ -301,7 +303,7 @@ def single_fit_simple(xs, ys):
     fit = scipy.stats.linregress(xs, ys)
     return fit[0]
 
-from MKImageAnalysis.fitderiv import fitderiv
+from GrowthRateTools.fitderiv import fitderiv
 import matplotlib.pyplot as plt
 
 def add_growth_rate_time_series_columns(df, fit_to_key):
@@ -330,11 +332,11 @@ def add_growth_rate_time_series_columns(df, fit_to_key):
         # plt.show()
 
 
-def add_label_columns(df, experiment_map):
-    # Load labels
-    pad_labels = pad_labels_from_experiment_mapping(experiment_map)
-    for key, mappings in pad_labels.items():
-        df.loc[:,key] = df['pad_name'].map(mappings)
+# def add_label_columns(df, experiment_map):
+#     # Load labels
+#     pad_labels = pad_labels_from_experiment_mapping(experiment_map)
+#     for key, mappings in pad_labels.items():
+#         df.loc[:,key] = df['pad_name'].map(mappings)
 
 def add_replicate_column(df, keys):
     # for each combination of key values, look for number of pads
@@ -557,10 +559,10 @@ def add_present_for_duration_column(df):
 
 ### Plot data from mutliple experiments at the same time
 
-def shared_graph_dir(experiments):
-    data_folder = config('OUTPUT_DIRECTORY')
-    experiment_name = '_'.join(experiments)
-    return os.path.join(data_folder, f'graphs_{PLOT_VERSION}', experiment_name)
+# def shared_graph_dir(experiments):
+#     data_folder = config('OUTPUT_DIRECTORY')
+#     experiment_name = '_'.join(experiments)
+#     return os.path.join(data_folder, f'graphs_{PLOT_VERSION}', experiment_name)
 
 
 import re

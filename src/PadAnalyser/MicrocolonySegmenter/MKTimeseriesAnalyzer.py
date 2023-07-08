@@ -8,9 +8,8 @@ from sklearn.neighbors import NearestNeighbors
 import cv2 as cv
 import logging
 
-from MKImageAnalysis import MKSegment
-from MKImageAnalysis import MKSegmentUtils
-from MKImageAnalysis import MKLineageTracker
+from PadAnalyser.FrameSets import FrameSet
+from . import MKSegment, MKSegmentUtils, MKLineageTracker
 
 
 ### Frame alignment
@@ -170,14 +169,12 @@ def ss_ids_from_col_ids(ss_contours, cs_contours, cs_ids, f_shape, dinfo):
     return ss_ids
 
 
-def analyze_time_seriess(movie, indices, mask_folder, label, dinfo):
-
-    start_indices = [stack_indices[0] for stack_indices in indices]
-    dinfos = [dinfo.append_to_label(f'{i}') for i in start_indices]
-    times = [movie.frame_time(i, true_time=True) for i in start_indices]
+def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinfo: str):
 
     # Flatten stacks and preprocess frames
-    frames_ts, laplacian_frames_ts = zip(*[MKSegment.flatten_stack([movie[i] for i in stack_indices], d.append_to_label(f'fs')) for stack_indices, d in zip(indices, dinfos)])
+    (frames_ts, laplacian_frames_ts), times = zip(*[(MKSegment.flatten_stack(z_stack, dinfo.append_to_label(str(i))), time) for i, (z_stack, time) in enumerate(frame_set)])
+
+    # frames_ts, laplacian_frames_ts = zip(*[MKSegment.flatten_stack([movie[i] for i in stack_indices], d.append_to_label(f'fs')) for stack_indices, d in zip(indices, dinfos)])
     
     # frames_ts = [f for f in frames_ts if f is not None] # in case frames at end of index set cannot be read
     # frames_ts = [MKSegment.preprocess(f, d.append_to_label('pp')) for f, d in zip(frames_ts, dinfos)]
