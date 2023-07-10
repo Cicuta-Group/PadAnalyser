@@ -226,16 +226,15 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
     )
     cs_ids_ts = id_objects['ids']
 
+    frame_labels = frame_set.get_frame_labels()
 
     ### Link bacteria to colony
     ss_ids_ts = [
-        ss_ids_from_col_ids(ss_contours=a, cs_contours=b, cs_ids=c, f_shape=frame_shape, dinfo=dinfo.append_to_label(f'{i}')) 
-        for a,b,c,i in zip(ss_contours_ts, cs_contours_ts, cs_ids_ts, start_indices)
+        ss_ids_from_col_ids(ss_contours=a, cs_contours=b, cs_ids=c, f_shape=frame_shape, dinfo=dinfo.append_to_label(l)) 
+        for a,b,c,l in zip(ss_contours_ts, cs_contours_ts, cs_ids_ts, frame_labels)
     ]
 
-    logging.debug(f'{len(ss_contours_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(frames_ts)}, {len(start_indices)}')
-
-    frame_labels = frame_set.get_frame_labels()
+    logging.debug(f'{len(ss_contours_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(frames_ts)}')
 
     if dinfo.video:
         # Colony with image as background

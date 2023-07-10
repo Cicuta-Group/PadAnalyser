@@ -36,6 +36,7 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     """
     
     label = frame_set.label
+    clear_dirs = output_config.clear_dirs
     print(label, frame_set, output_config)
     
     # Logging dir setup
@@ -47,15 +48,15 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     frameset_output_dir = output_config.output_dir
     frameset_segmentation_dir = os.path.join(frameset_output_dir, 'segmentation')
     frameset_dataframe_dir = os.path.join(frameset_output_dir, 'dataframe')
-    MKUtils.generate_directory(frameset_segmentation_dir, clear=False) # make directories if they do not exist
-    MKUtils.generate_directory(frameset_dataframe_dir, clear=False)
+    MKUtils.generate_directory(frameset_segmentation_dir, clear=clear_dirs) # make directories if they do not exist
+    MKUtils.generate_directory(frameset_dataframe_dir, clear=clear_dirs)
 
     # Debug dir setup
     debug_dir = output_config.debug_dir
-    video_dir = os.path.join(debug_dir, 'img')
-    image_dir = os.path.join(debug_dir, 'mov')
-    MKUtils.generate_directory(video_dir, clear=False)
-    MKUtils.generate_directory(image_dir, clear=False)
+    image_dir = os.path.join(debug_dir, 'img')
+    video_dir = os.path.join(debug_dir, 'mov')
+    MKUtils.generate_directory(video_dir, clear=clear_dirs)
+    MKUtils.generate_directory(image_dir, clear=clear_dirs)
 
     frameset_segmentation_file = os.path.join(frameset_segmentation_dir, label + '.json')
     frameset_dataframe_file = os.path.join(frameset_dataframe_dir, label + '.json') # file where data from this experiment is stored

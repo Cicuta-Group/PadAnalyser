@@ -14,4 +14,5 @@ class OutputConfig:
     cache_segmentation: bool
     cache_dataframe: bool
 
+    clear_dirs: bool # clear output and debug directories on run. If false, old files will be overwritten.
     process_count: Optional[int] # number of processes to run in paralell. 1 for single threaded. None for as many as possible. 

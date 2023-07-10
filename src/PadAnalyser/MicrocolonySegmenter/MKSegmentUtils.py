@@ -694,7 +694,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
         FPS = 5
         out = cv.VideoWriter(os.path.join(dinfo.video_dir, f'{dinfo.label}.mp4'), cv.VideoWriter_fourcc(*'mp4v'), FPS, frames_ts[0].shape[::-1])
 
-        logging.debug(f'{len(frames_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(ss_contours_ts)}, {len(ss_ids_ts)}, {len(cumulative_offset_ts)}, {len(cs_on_border_ts)}, {len(indices)}, {len(times)}')
+        logging.debug(f'{len(frames_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(ss_contours_ts)}, {len(ss_ids_ts)}, {len(cumulative_offset_ts)}, {len(cs_on_border_ts)}, {len(times)}')
 
         ### Generate frames with colony and single-cell annotation
         for f, cs_contours, cs_ids, ss_contours, ss_ids, cumulative_offset, cs_on_border, frame_label, time \
@@ -722,6 +722,8 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
             if output_frames: 
                 # output full frame
                 plot_frame(debug_frame, dinfo.append_to_label(f't{time_label.replace(":", "_")}'))
+
+                print(cumulative_offset)
 
                 debug_frame_no_offset = frame_with_cs_ss_offset(
                     frame=f, 
