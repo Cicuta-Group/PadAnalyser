@@ -171,14 +171,20 @@ def ss_ids_from_col_ids(ss_contours, cs_contours, cs_ids, f_shape, dinfo):
 
 def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinfo: str):
 
+    dinfos = [dinfo.append_to_label(str(i)) for i in range(len(frame_set))]
+
     # Flatten stacks and preprocess frames
-    (frames_ts, laplacian_frames_ts), times = zip(*[(MKSegment.flatten_stack(z_stack, dinfo.append_to_label(str(i))), time) for i, (z_stack, time) in enumerate(frame_set)])
+    frames_ts, laplacian_frames_ts, times = zip(*[(*MKSegment.flatten_stack(z_stack, d), time) for (z_stack, time), d in zip(frame_set, dinfos)])
 
     # frames_ts, laplacian_frames_ts = zip(*[MKSegment.flatten_stack([movie[i] for i in stack_indices], d.append_to_label(f'fs')) for stack_indices, d in zip(indices, dinfos)])
     
     # frames_ts = [f for f in frames_ts if f is not None] # in case frames at end of index set cannot be read
     # frames_ts = [MKSegment.preprocess(f, d.append_to_label('pp')) for f, d in zip(frames_ts, dinfos)]
     
+    print(len(frames_ts))
+    print(len(laplacian_frames_ts))
+    print(len(times))
+
     frame_shape = frames_ts[0].shape
 
     # Compute contours
@@ -229,6 +235,8 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
 
     logging.debug(f'{len(ss_contours_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(frames_ts)}, {len(start_indices)}')
 
+    frame_labels = frame_set.get_frame_labels()
+
     if dinfo.video:
         # Colony with image as background
         MKSegmentUtils.masks_to_movie(
@@ -239,7 +247,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
             ss_ids_ts=ss_ids_ts, 
             cumulative_offset_ts=cumulative_offset_ts, 
             cs_on_border_ts=cs_on_border_ts, 
-            indices=indices, 
+            frame_labels=frame_labels, 
             times=times, 
             ss_stroke=1, 
             dinfo=dinfo.append_to_label('csi'),
@@ -255,7 +263,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
             ss_ids_ts=ss_unique_ids_ts, 
             cumulative_offset_ts=cumulative_offset_ts, 
             cs_on_border_ts=cs_on_border_ts, 
-            indices=indices, 
+            frame_labels=frame_labels, 
             times=times, 
             ss_stroke=1,
             output_frames=True,
@@ -273,7 +281,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     ss_ids_ts=ss_ids_ts, 
         #     cumulative_offset_ts=cumulative_offset_ts, 
         #     cs_on_border_ts=cs_on_border_ts, 
-        #     indices=indices, 
+        #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=1, 
         #     dinfo=dinfo.append_to_label('csl'),
@@ -288,7 +296,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
             ss_ids_ts=ss_unique_ids_ts, 
             cumulative_offset_ts=cumulative_offset_ts, 
             cs_on_border_ts=cs_on_border_ts, 
-            indices=indices, 
+            frame_labels=frame_labels, 
             times=times, 
             ss_stroke=cv.FILLED, 
             dinfo=dinfo.append_to_label('ssi'),
@@ -303,7 +311,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     ss_ids_ts=[[]]*length, 
         #     cumulative_offset_ts=cumulative_offset_ts, 
         #     cs_on_border_ts=cs_on_border_ts, 
-        #     indices=indices, 
+        #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=cv.FILLED, 
         #     dinfo=dinfo.append_to_label('img'),
@@ -318,7 +326,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     ss_ids_ts=[[]]*length, 
         #     cumulative_offset_ts=cumulative_offset_ts, 
         #     cs_on_border_ts=cs_on_border_ts, 
-        #     indices=indices, 
+        #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=cv.FILLED, 
         #     dinfo=dinfo.append_to_label('lap'),

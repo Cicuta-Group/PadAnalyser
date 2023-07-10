@@ -26,6 +26,9 @@ class FrameSet:
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds
         pass
     
+    def get_frame_label(self, index: int) -> int:
+        pass
+
     def get_frame_count(self) -> int:
         pass
     
@@ -64,16 +67,21 @@ class FrameSet:
         else:
             raise StopIteration
 
+    def get_frame_labels(self):
+        return [self.get_frame_label(i) for i in range(len(self))]
+
+
 
 
 class TiffFrameSet(FrameSet):
 
-    def __init__(self, file_paths: Union[List[str], List[List[str]]], times_in_seconds: List[int], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
+    def __init__(self, file_paths: Union[List[str], List[List[str]]], times_in_seconds: List[int], frame_labels: List[str], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
         if len(file_paths) != len(times_in_seconds):
             raise Exception(f"Number of files {len(file_paths)} different from number of times {len(times_in_seconds)}")
         
         self.filenames = file_paths
         self.times = times_in_seconds
+        self.frame_labels = frame_labels if frame_labels else [str(i) for i in range(len(file_paths))]
         super().__init__(**kwargs)
 
 
@@ -82,6 +90,9 @@ class TiffFrameSet(FrameSet):
     
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds
         return self.times[index]
+
+    def get_frame_label(self, index: int) -> str:
+        return self.frame_labels[index]
 
     def get_frame_count(self) -> int:
         return len(self.times)

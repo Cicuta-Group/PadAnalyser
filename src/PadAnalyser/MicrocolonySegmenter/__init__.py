@@ -18,8 +18,8 @@ import shutil
 from functools import partial
 from multiprocessing import Pool
 from . import MKTimeseriesAnalyzer, DataProcessor
-from MKSegmentUtils import DInfo
-import MKAnalysisUtils
+from .MKSegmentUtils import DInfo
+from . import MKAnalysisUtils
 
 
 def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.DataFrame:
@@ -37,16 +37,25 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     
     label = frame_set.label
     print(label, frame_set, output_config)
-
+    
+    # Logging dir setup
+    loggin_dir = os.path.dirname(output_config.logging_file)
+    MKUtils.generate_directory(loggin_dir)
     MKUtils.configure_logger(filepath=output_config.logging_file, label=f'subprocess', file_mode='a', stream_level='WARN') # reconfigure in each multiprocessing pool
 
-    frameset_output_dir = frame_set.output_dir
+    # Output dir setup
+    frameset_output_dir = output_config.output_dir
     frameset_segmentation_dir = os.path.join(frameset_output_dir, 'segmentation')
     frameset_dataframe_dir = os.path.join(frameset_output_dir, 'dataframe')
-    
-    # make directories if they do not exist
-    MKUtils.generate_directory(frameset_segmentation_dir, clear=False)
+    MKUtils.generate_directory(frameset_segmentation_dir, clear=False) # make directories if they do not exist
     MKUtils.generate_directory(frameset_dataframe_dir, clear=False)
+
+    # Debug dir setup
+    debug_dir = output_config.debug_dir
+    video_dir = os.path.join(debug_dir, 'img')
+    image_dir = os.path.join(debug_dir, 'mov')
+    MKUtils.generate_directory(video_dir, clear=False)
+    MKUtils.generate_directory(image_dir, clear=False)
 
     frameset_segmentation_file = os.path.join(frameset_segmentation_dir, label + '.json')
     frameset_dataframe_file = os.path.join(frameset_dataframe_dir, label + '.json') # file where data from this experiment is stored
@@ -78,17 +87,17 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     dinfo = DInfo(
         label=label,
         live_plot=False,
-        file_plot=None,
-        video=None,
-        image_dir=None,
-        video_dir=None,
-        crop=False,
+        file_plot=True,
+        video=True,
+        image_dir=image_dir,
+        video_dir=video_dir,
+        crop=None,
         printing=False,
     )
 
     logging.info(f'Analysing {label}')
     data = MKTimeseriesAnalyzer.analyze_time_seriess(
-        frame_set=frame_set, 
+        frame_set=frame_set,
         mask_folder=output_config.mask_dir, 
         label=label, 
         dinfo=dinfo,

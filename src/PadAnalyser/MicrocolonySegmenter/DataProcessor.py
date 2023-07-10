@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-import DataUtils, MKSegmentUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
+from . import DataUtils, MKSegmentUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
 
 # try:
 #     import CellClassifier
@@ -303,7 +303,7 @@ def single_fit_simple(xs, ys):
     fit = scipy.stats.linregress(xs, ys)
     return fit[0]
 
-from GrowthRateTools.fitderiv import fitderiv
+from .GrowthRateTools.fitderiv import fitderiv
 import matplotlib.pyplot as plt
 
 def add_growth_rate_time_series_columns(df, fit_to_key):

@@ -1,4 +1,4 @@
-from MKImageAnalysis.MKSegmentUtils import *
+from .MKSegmentUtils import *
 import logging
 
 # '''
@@ -47,7 +47,10 @@ def closest_factor(n,k):
             return i
 
 def focus_stitching(stack):
-    
+    if type(stack) != list:
+        print('Stack has only one frame, returning that')
+        return stack 
+
     fs = stack
     fs = [cv.GaussianBlur(f, (7, 7), 0) for f in fs] # blur, kernel size about feature size
     fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
