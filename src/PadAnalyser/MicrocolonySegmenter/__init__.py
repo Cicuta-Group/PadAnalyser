@@ -37,7 +37,6 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     
     label = frame_set.label
     clear_dirs = output_config.clear_dirs
-    print(label, frame_set, output_config)
     
     # Logging dir setup
     loggin_dir = os.path.dirname(output_config.logging_file)
@@ -103,8 +102,6 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
         label=label, 
         dinfo=dinfo,
     )
-    for key, value in frame_set.metadata.items():
-        data[key] = value
     
     MKAnalysisUtils.write_dict_to_json(
         data=data,
@@ -116,6 +113,7 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     logging.info(f'Making dataframe for {label}')
     df = DataProcessor.dataframe_from_data_series(
         data=data,
+        label=label,
         metadata=frame_set.metadata
     )
     df.to_json(frameset_dataframe_file)

@@ -723,15 +723,13 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                 # output full frame
                 plot_frame(debug_frame, dinfo.append_to_label(f't{time_label.replace(":", "_")}'))
 
-                print(cumulative_offset)
-
                 debug_frame_no_offset = frame_with_cs_ss_offset(
                     frame=f, 
                     cs_contours=cs_contours, 
                     cs_ids=cs_ids,
                     ss_contours=ss_contours, 
                     ss_ids=ss_ids,
-                    offset=[[0 for _ in f] for f in cumulative_offset],
+                    offset=[0 for f in cumulative_offset],
                     cs_on_border=cs_on_border,
                     ss_stroke=ss_stroke,
                 )

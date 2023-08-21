@@ -49,8 +49,7 @@ SERIES_KEY = 'labelid'
     
 #     CellClassifier.add_is_debris_score_column(df=df)
 
-
-def dataframe_from_data_series(data, metadata):
+def dataframe_from_data_series(data, label, metadata):
     
     keys = ['colony_area', 'colony_arc_length', 'colony_on_border', 'colony_id', 'colony_ID', 'colony_name'] # for all keys, see MKTImeseriesAnalyzer EOF
     ss_keys = MKSegmentUtils.SS_STATS_KEYS
@@ -59,10 +58,6 @@ def dataframe_from_data_series(data, metadata):
     ss_ids_key = 'ss_id'
 
     df = pd.DataFrame()
-    
-    label = data['label']
-    pad_name = data['pad_name'].strip() # strip to remove leading zero
-    pad = Pad(pad_name)
     times = data['time'] # loop over 
     
     for i, (time, ids, properties_for_ids, ss_ids, ss_properties) in enumerate(zip(
@@ -93,9 +88,6 @@ def dataframe_from_data_series(data, metadata):
                 'round_time': round_time, # sec
                 'round_time_hours': round_time/60/60, # hour
                 'round_time_days': round_time/60/60/24, # days
-                'pad_name': pad_name,
-                'row': pad.row,
-                'col': pad.col,
                 'id': id,
                 'label': label,
                 SERIES_KEY: f'{label}_{id}',
