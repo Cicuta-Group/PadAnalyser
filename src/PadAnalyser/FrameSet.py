@@ -13,7 +13,6 @@ Frame = np.ndarray
 class FrameSet:
     
     ### Methods subclasses should implement
-
     
     def __init__(self, label: str, image_type: str, metadata: dict = None): # initializer that enables user to spesify the data for this frame set
         self.label = label

@@ -4,21 +4,20 @@ PLOT_VERSION = 'P1.21'
 MODEL_VERSION = 'M1.03'
 
 # typehint types
-from PadAnalyser.FrameSets import FrameSet
+from PadAnalyser.FrameSet import FrameSet
 from PadAnalyser.OutputConfig import OutputConfig
 import pandas as pd
-from typing import List
+from typing import List, Type
 
 import MKUtils
 import tqdm
 import logging
 import os
 import json
-import shutil
 from functools import partial
 from multiprocessing import Pool
 from . import MKTimeseriesAnalyzer, DataProcessor
-from .MKSegmentUtils import DInfo
+from .DInfo import DInfo
 from . import MKAnalysisUtils
 
 
@@ -57,8 +56,8 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     MKUtils.generate_directory(video_dir, clear=clear_dirs)
     MKUtils.generate_directory(image_dir, clear=clear_dirs)
 
-    frameset_segmentation_file = os.path.join(frameset_segmentation_dir, label + '.json')
-    frameset_dataframe_file = os.path.join(frameset_dataframe_dir, label + '.json') # file where data from this experiment is stored
+    frameset_segmentation_file = os.path.join(frameset_segmentation_dir, f'{label}_{SEGMENTATION_VERSION}.json')
+    frameset_dataframe_file = os.path.join(frameset_dataframe_dir, f'{label}_{DATAFRAME_VERSION}.json') # file where data from this experiment is stored
 
     # try to recover dataframe from cache file
     if output_config.cache_dataframe:
@@ -122,14 +121,14 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     return df
     
 
-def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
+def segment_frame_sets(frame_sets: List[Type(FrameSet)], output_config: OutputConfig):
         
     # try to load from individual data-files or segment from scratch
     logging.info('Starting analysis')
     
-    dataframe_file = os.path.join(output_config.output_dir, 'dataframe.json')        
+    # dataframe_file = os.path.join(output_config.output_dir, 'dataframe.json')
 
-    with Pool(processes=output_config.process_count) as pool: 
+    with Pool(processes=output_config.process_count) as pool:
 
         # Analyze videos to produce timeseries data vectors
         dataframes = list(

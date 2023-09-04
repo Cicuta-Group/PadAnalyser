@@ -14,9 +14,6 @@ except ImportError:
 
 from scipy import ndimage
 
-import dataclasses
-from copy import copy
-
 from decouple import config
 font_file = config('FONT_FILE', default='arial.ttf')
 
@@ -27,44 +24,6 @@ UM_PER_PIXEL = 0.112 # for Genicam with 40x objective
 MIN_COLONY_AREA = 2 # in um^2
 MIN_CELL_AREA = 0.25 # in um^2
 MIN_POINT_SEPARATION = 4 # in um
-
-'''
-Class to concicely pass information about how debug should be handled
-'''
-@dataclasses.dataclass
-class DInfo:
-    label: str
-    live_plot: bool = False # produce matplotlib graphs
-    file_plot: bool = False
-    video: bool = True # if it should output video debug file
-    image_dir: str = None # output debug images to spesified directory
-    video_dir: str = None # output debug videos to spesified directory
-    crop: tuple[tuple[int]] = None # region to crop output images to
-    printing: bool = False
-    
-
-    def append_to_label(self, text):
-        cp = copy(self)
-        cp.label = f'{cp.label}_{text}'
-        return cp
-
-    def with_live_plot(self, active=True):
-        cp = copy(self)
-        cp.live_plot = active
-        return cp
-
-    def with_file_plot(self, active=True):
-        cp = copy(self)
-        cp.file_plot = active
-        return cp
-
-    def disabled(self):
-        cp = copy(self)
-        cp.live_plot = False
-        cp.file_plot = False
-        cp.video = False
-        return cp
-
 
 '''
 Normalize frame between 0 and 255

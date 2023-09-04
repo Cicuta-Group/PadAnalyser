@@ -7,4 +7,9 @@ Repository with code for segmenting and plotting single-cell microscopy data fro
 
 ## Usage
 1. Make your FrameSet - this is an object that contains all infomration requiered to process one field of view on a pad, including timeseries images, timestamps, and a dictionary with metadata. Labs store theur data in different ways, so you can subclass the FrameSet abstract class to support your particular format. If your images are Tiffs, we have included a TiffFrameSet subclass you can use. 
-2. Make your OutputConfig - this is an object that spesifies where output files should be printed, what debug information should be generated and where.
+2. Make your OutputConfig - this is an object that specifies where output files should be printed, what debug information should be generated and where.
+
+
+
+### TODOs:
+- Remove use of decouple: at this level, nobody should need to use it.

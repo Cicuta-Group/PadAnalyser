@@ -5,11 +5,11 @@ import os
 
 @dataclasses.dataclass
 class OutputConfig:
-    output_dir: str
-    work_dir: str
-    debug_dir: str
-    mask_dir: str
-
+    output_dir: str # where output dataframes are placed
+    work_dir: str # where temporary files are placed, can take up a lot of space
+    debug_dir: str # where debug images and videos are placed
+    mask_dir: str # where masks are placed
+    
     logging_file: str
 
     cache_segmentation: bool

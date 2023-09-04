@@ -14,40 +14,42 @@ from . import DataUtils, MKSegmentUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGM
 SERIES_KEY = 'labelid'
 
 # inplace manipulation of dataframe to make ready for plotting
-# def process_dataframe(df, experiment_map):
+def process_dataframe(df):
 
-#     # numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
-#     logging.debug(f'{numeric_keys=}, {text_keys=}')
+    # numeric_keys, text_keys = Plotter.find_numeric_and_text_keys(experiment_map=experiment_map)
+    # logging.debug(f'{numeric_keys=}, {text_keys=}')
     
-#     # Filter rows
-#     df.query('id >= 0', inplace=True) # remove all without id
+    # Filter rows
+    df.query('id >= 0', inplace=True) # remove all without id
     
-#     # Add and manipulate columns
-#     df['ss_area_total'] = df['ss_area_mean'].mul(df['ss_area_count'])
+    # Add and manipulate columns
+    df['ss_area_total'] = df['ss_area_mean'].mul(df['ss_area_count'])
     
-#     add_label_columns(df=df, experiment_map=experiment_map) # add labels desribing experiment (antibiotic etc.)
-#     add_replicate_column(df=df, keys=numeric_keys+text_keys)
-#     add_time_bin_column(df=df, interval=30)
+    # add_label_columns(df=df, experiment_map=experiment_map) # add labels desribing experiment (antibiotic etc.)
+    # add_replicate_column(df=df, keys=numeric_keys+text_keys)
+    add_time_bin_column(df=df, interval=30)
     
-#     # low_pass_filter_column(df=df, column='colony_area')
-#     # low_pass_filter_column(df=df, column='ss_area_total')
-#     # low_pass_filter_column(df=df, column='ss_area_count')
-#     add_growth_rate_time_series_columns(df=df, fit_to_key='colony_area')
-#     add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_total')
-#     add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_count')
+    # low_pass_filter_column(df=df, column='colony_area')
+    # low_pass_filter_column(df=df, column='ss_area_total')
+    # low_pass_filter_column(df=df, column='ss_area_count')
+    add_growth_rate_time_series_columns(df=df, fit_to_key='colony_area')
+    add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_total')
+    add_growth_rate_time_series_columns(df=df, fit_to_key='ss_area_count')
 
-#     if not 'ss_area_total_growth_rate' in df.columns: return
+    if not 'ss_area_total_growth_rate' in df.columns: return
 
-#     add_termination_marker_columns(df=df)
+    add_termination_marker_columns(df=df)
 
-#     add_colony_lysis_columns(df)
-#     add_present_for_duration_column(df)
+    add_colony_lysis_columns(df)
+    add_present_for_duration_column(df)
 
-#     # Filtering that can only be done at the end
-#     # df.query('colony_on_border == False', inplace=True)
-#     # df.dropna(subset=[COLONY_GROWTH_RATE_KEY], inplace=True) # has all fields filled
+    # Filtering that can only be done at the end
+    # df.query('colony_on_border == False', inplace=True)
+    # df.dropna(subset=[COLONY_GROWTH_RATE_KEY], inplace=True) # has all fields filled
     
-#     CellClassifier.add_is_debris_score_column(df=df)
+    # CellClassifier.add_is_debris_score_column(df=df)
+
+
 
 def dataframe_from_data_series(data, label, metadata):
     
@@ -102,9 +104,8 @@ def dataframe_from_data_series(data, label, metadata):
             df.loc[df.shape[0]] = row.values()
 
     # TODO: how to deal with experiment_map? 
-    # if process and not df.empty: 
-    #     # process dataframe from threading jobs - makes this multiprocessed as well
-    #     process_dataframe(df=df, experiment_map=experiment_map)
+    if not df.empty: 
+        process_dataframe(df=df) # process dataframe from threading jobs - makes this multiprocessed as well
 
     return df
 
@@ -201,21 +202,7 @@ def condition_label(text_keys, text_values, numeric_key):
     return lowercase_first_char(label.strip())
 
 
-
-# def pad_labels_from_experiment_mapping(experiment_map):
-#     output = {}
-#     for label, conditions in experiment_map['condition_sets'].items():
-#         pads_to_values = [(Pad.range(pad_range_key), value) for pad_range_key, value in conditions.items()]
-#         c_mapping = {str(pad): value for pads, value in pads_to_values for pad in pads}
-#         output[label] = c_mapping
-    
-#     return output
-
-
-
-
 ### Mathods to add columns to dataframe
-
 
 def add_termination_marker_columns(df):
     # Add marks where colonies hit border
@@ -323,12 +310,6 @@ def add_growth_rate_time_series_columns(df, fit_to_key):
         # q.plotfit('df', ylabel= 'growth rate')
         # plt.show()
 
-
-# def add_label_columns(df, experiment_map):
-#     # Load labels
-#     pad_labels = pad_labels_from_experiment_mapping(experiment_map)
-#     for key, mappings in pad_labels.items():
-#         df.loc[:,key] = df['pad_name'].map(mappings)
 
 def add_replicate_column(df, keys):
     # for each combination of key values, look for number of pads

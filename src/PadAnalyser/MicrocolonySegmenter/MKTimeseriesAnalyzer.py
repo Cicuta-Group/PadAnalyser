@@ -8,8 +8,8 @@ from sklearn.neighbors import NearestNeighbors
 import cv2 as cv
 import logging
 
-from PadAnalyser.FrameSets import FrameSet
-from . import MKSegment, MKSegmentUtils, MKLineageTracker
+from PadAnalyser.FrameSet import FrameSet
+from . import MKSegment, MKSegmentUtils, MKLineageTracker, DInfo
 
 
 ### Frame alignment
@@ -169,7 +169,7 @@ def ss_ids_from_col_ids(ss_contours, cs_contours, cs_ids, f_shape, dinfo):
     return ss_ids
 
 
-def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinfo: str):
+def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinfo: DInfo.DInfo):
 
     dinfos = [dinfo.append_to_label(str(i)) for i in range(len(frame_set))]
 
