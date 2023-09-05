@@ -6,9 +6,24 @@ import skimage.transform
 import scipy.signal
 
 
-def z_stack_projection(stack, dinfo: DInfo.DInfo):
+def z_stack_projection(stack, dinfo: DInfo):
     fs = stack
     
+    # fs = [np.maximum(f-np.mean(fs), 0) for f in fs]
+
+    # WINDOW_SIZE = 401  # choose an appropriate window size
+    
+    # # Compute the local mean for each frame
+    # local_means = [cv.boxFilter(f.astype(float), -1, (WINDOW_SIZE, WINDOW_SIZE)) for f in fs]
+    # fs = [np.maximum(f - mean, 0) for f, mean in zip(fs, local_means)]
+    
+    # for i, frame in enumerate(fs):
+    #     print(f'frame {i} max {np.max(frame)}')
+    #     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label(f'rbg {i}'))
+
+    # # convert to uint8
+    # fs = [f.astype(np.uint8) for f in fs]
+
     # Find second order gradients of each frame
     fs = [cv.GaussianBlur(f, (5, 5), 0) for f in fs] # blur, kernel size about feature size
     fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
@@ -17,12 +32,31 @@ def z_stack_projection(stack, dinfo: DInfo.DInfo):
     fs = [np.maximum(-f, 0) for f in fs]
     
     # Compute focus score for each pixel by downsampling with funciton that characterize information. Varience best when testing.
-    KERNEL_SIZE = 101
+    KERNEL_SIZE = 161
     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.var), (f.shape)) for f in fs]
     
     # Find index with highest score in stack for each pixel and pick in focus frame based on that
     f_max = np.argmax(np.array(fs), 0)
     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+
+    # print('new')
+    # # Compute local variance and mean
+    # KERNEL_SIZE = 101
+    # local_var = [cv.boxFilter(f**2, -1, (KERNEL_SIZE, KERNEL_SIZE)) - cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE))**2 for f in fs]
+    # local_mean = [cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE)) / (KERNEL_SIZE**2) for f in fs]
+
+    # epsilon = 1e-5  # To prevent division by zero
+    # focus_scores = [variance / (mean + epsilon) for variance, mean in zip(local_var, local_mean)]
+
+    # # Find index with highest score in stack for each pixel and pick in-focus frame based on that
+    # f_max = np.argmax(np.array(focus_scores), 0)
+    # f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+
+    # # Check histogram and invert if needed
+    # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+    # peak = bins[np.argmax(hist)]
+    # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+    #     f_focus = 255 - f_focus
 
     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
     MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
@@ -38,13 +72,13 @@ def flatten_stack(stack, dinfo):
     elif len(stack) == 1: frame_raw = stack[0]
     else: frame_raw = z_stack_projection(stack, dinfo=dinfo) # compute laplacian from normalized frame
     
-    frame_raw = MKSegmentUtils.normalize_up(frame_raw)
+    frame_raw = MKSegmentUtils.normalize_up(frame_raw.astype(np.uint16))
     frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
 
     # compute laplacian compressed stack
     laplacian_frame = cv.GaussianBlur(frame_raw, (7, 7), 0) # blur, kernel size about feature size
-    laplacian_frame = cv.Laplacian(laplacian_frame, cv.CV_16S, ksize=7) # laplacian
-    laplacian_frame = laplacian_frame//2**8 # scale to fit in int16
+    laplacian_frame = cv.Laplacian(laplacian_frame, cv.CV_32S, ksize=7) # laplacian
+    laplacian_frame = laplacian_frame//2**16 # scale to fit in int16
     laplacian_frame = laplacian_frame.astype(np.int16)
 
     # output debug frames
@@ -60,7 +94,7 @@ def flatten_stack(stack, dinfo):
 def bf_single_cell_segment(f, colony_masks, dinfo):
 
     if dinfo.printing:
-        logging.debug(f'Raw laplacian frame info: type={l.dtype}, min={np.min(l)}, max={np.max(l)}')
+        logging.debug(f'Raw frame info: type={f.dtype}, min={np.min(f)}, max={np.max(f)}')
 
     ### Make single cell mask -> m0
     # m0 = l
@@ -91,13 +125,14 @@ def bf_single_cell_segment(f, colony_masks, dinfo):
 
     # anything that fits inside an nxn square of 1s is removed
     
-    # filter anything outside colony mask
-    cm = np.zeros(f.shape).astype(np.uint8)
-    for i, _ in enumerate(colony_masks):
-        cv.drawContours(cm, contours=colony_masks, contourIdx=i, color=1, thickness=cv.FILLED)
-    MKSegmentUtils.plot_frame(cm*255, dinfo=dinfo.append_to_label('3_m2'))
-    
-    m1 = np.logical_and(m1, cm)
+    if colony_masks != None:
+        # filter anything outside colony masks
+        cm = np.zeros(f.shape).astype(np.uint8)
+        for i, _ in enumerate(colony_masks):
+            cv.drawContours(cm, contours=colony_masks, contourIdx=i, color=1, thickness=cv.FILLED)
+        MKSegmentUtils.plot_frame(cm*255, dinfo=dinfo.append_to_label('3_m2'))
+        
+        m1 = np.logical_and(m1, cm)
 
     # # m1 = cv.morphologyEx(m1, cv.MORPH_OPEN, k2_square)
     # MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('3_m3'))
