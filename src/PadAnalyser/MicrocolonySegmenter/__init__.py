@@ -121,7 +121,7 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     return df
     
 
-def segment_frame_sets(frame_sets: List[Type(FrameSet)], output_config: OutputConfig):
+def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
         
     # try to load from individual data-files or segment from scratch
     logging.info('Starting analysis')
