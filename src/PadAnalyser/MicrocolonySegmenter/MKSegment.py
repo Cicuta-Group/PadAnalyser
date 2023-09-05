@@ -21,8 +21,7 @@ def z_stack_projection(stack, dinfo: DInfo.DInfo):
     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.var), (f.shape)) for f in fs]
     
     # Find index with highest score in stack for each pixel and pick in focus frame based on that
-    fs = np.array(fs)
-    f_max = np.argmax(fs, 0)
+    f_max = np.argmax(np.array(fs), 0)
     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
 
     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
@@ -33,7 +32,13 @@ def z_stack_projection(stack, dinfo: DInfo.DInfo):
 
 # simple flatten stack with stitching 
 def flatten_stack(stack, dinfo):
-    frame_raw = MKSegmentUtils.normalize_up(z_stack_projection(stack, dinfo=dinfo)) # compute laplacian from normalized frame
+
+    # Check if stack is already flattened, otherwise compute projection
+    if isinstance(stack, np.ndarray): frame_raw = stack
+    elif len(stack) == 1: frame_raw = stack[0]
+    else: frame_raw = z_stack_projection(stack, dinfo=dinfo) # compute laplacian from normalized frame
+    
+    frame_raw = MKSegmentUtils.normalize_up(frame_raw)
     frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
 
     # compute laplacian compressed stack

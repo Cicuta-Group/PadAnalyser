@@ -128,20 +128,26 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
     
     # dataframe_file = os.path.join(output_config.output_dir, 'dataframe.json')
 
-    with Pool(processes=output_config.process_count) as pool:
+    try:
+        with Pool(processes=output_config.process_count) as pool:
 
-        # Analyze videos to produce timeseries data vectors
-        dataframes = list(
-            tqdm.tqdm( # display progress bar, https://stackoverflow.com/a/45276885/1502517
-                pool.imap_unordered( # map with generator, trigger evaluation using outer list
-                    partial(
-                        segment_frame_set,
-                        output_config=output_config,
-                    ),
-                    zip(frame_sets)
-                ), total=len(frame_sets)
+            # Analyze videos to produce timeseries data vectors
+            dataframes = list(
+                tqdm.tqdm( # display progress bar, https://stackoverflow.com/a/45276885/1502517
+                    pool.imap_unordered( # map with generator, trigger evaluation using outer list
+                        partial(
+                            segment_frame_set,
+                            output_config=output_config,
+                        ),
+                        frame_sets
+                    ), total=len(frame_sets)
+                )
             )
-        )
+    except KeyboardInterrupt:
+        print("Detected KeyboardInterrupt. Terminating workers.")
+        pool.terminate()
+        pool.join()
+        return None
 
     df = pd.concat(dataframes, axis=0)
     df.reset_index(inplace=True)
@@ -154,4 +160,3 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
     # round_times = np.array(time_series[index_of_first_time_series])
     
     return df
-

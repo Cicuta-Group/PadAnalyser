@@ -2,23 +2,41 @@
 from typing import List, Union
 from PIL import Image
 import numpy as np
-# import abstract base class
-# from abc import abc # TODO: how to make abstract class
+
+import dataclasses
+from abc import ABC, abstractmethod
+
 Frame = np.ndarray
+
+
+@dataclasses.dataclass
+class ZStack:
+    frames: List[Frame]
+    times: List[int] # in seconds
+    label: str
+
+    @property
+    def z_count(self) -> int:
+        return len(self.times)
+    
+    @property
+    def time(self) -> int:
+        return self.times[0]
 
 
 # Interface for sets of frames to be analyzed as a timelapse. 
 # Objects that contain the time-lapse information for a given field of view. Can include z-stacks or not. 
 
-class FrameSet:
+class FrameSet(ABC):
     
     ### Methods subclasses should implement
 
+    @abstractmethod
     def __init__(self, label: str, metadata: dict = None): # initializer that enables user to spesify the data for this frame set
         self.label = label
         self.metadata = metadata
 
-    def get_frame(self, index: int) -> Frame: 
+    def get_frame(self, index: int) -> Frame:
         pass
     
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds

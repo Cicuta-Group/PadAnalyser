@@ -173,6 +173,8 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
 
     dinfos = [dinfo.append_to_label(str(i)) for i in range(len(frame_set))]
 
+    
+
     # Flatten stacks and preprocess frames
     frames_ts, laplacian_frames_ts, times = zip(*[(*MKSegment.flatten_stack(z_stack, d), time) for (z_stack, time), d in zip(frame_set, dinfos)])
 
@@ -180,10 +182,6 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
     
     # frames_ts = [f for f in frames_ts if f is not None] # in case frames at end of index set cannot be read
     # frames_ts = [MKSegment.preprocess(f, d.append_to_label('pp')) for f, d in zip(frames_ts, dinfos)]
-    
-    print(len(frames_ts))
-    print(len(laplacian_frames_ts))
-    print(len(times))
 
     frame_shape = frames_ts[0].shape
 
