@@ -51,7 +51,7 @@ def process_dataframe(df):
 
 
 
-def dataframe_from_data_series(data, label, metadata):
+def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.DataFrame:
     
     keys = ['colony_area', 'colony_arc_length', 'colony_on_border', 'colony_id', 'colony_ID', 'colony_name'] # for all keys, see MKTImeseriesAnalyzer EOF
     ss_keys = MKSegmentUtils.SS_STATS_KEYS
@@ -110,8 +110,33 @@ def dataframe_from_data_series(data, label, metadata):
     return df
 
 
-#### Data loading
 
+def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.DataFrame:
+    
+    multi_keys = ['ss_area', 'ss_aspect_ratio', 'ss_aspect_ratio_max_width', 'ss_centroid', 'ss_dist_sums', 'ss_length', 'ss_max_width', 'ss_width']
+    single_keys = ['time', 'ss_count']
+
+    print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
+
+    time_list_of_multi_dicts = [{k:v for k, v in zip(multi_keys, values)} for values in zip(*[data[key] for key in multi_keys])]
+    time_list_of_single_dicts = [{k:v for k, v in zip(single_keys, values)} for values in zip(*[data[key] for key in single_keys])]
+    
+    dfs = []
+
+    for time_index, (multi_dicts, single_dicts) in enumerate(zip(time_list_of_multi_dicts, time_list_of_single_dicts)):
+        df_multi = pd.DataFrame(multi_dicts)
+        
+        for k, v in {**single_dicts, **metadata, 'label': label}.items():
+            df_multi[k] = v
+        df_multi['time_index'] = time_index
+        dfs.append(df_multi)
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    return df
+
+
+#### Data loading
 
 def load_df_from_file(dataframe_file):
     try:

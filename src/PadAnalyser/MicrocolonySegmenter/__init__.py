@@ -7,7 +7,7 @@ MODEL_VERSION = 'M1.03'
 from PadAnalyser.FrameSet import FrameSet
 from PadAnalyser.OutputConfig import OutputConfig
 import pandas as pd
-from typing import List, Type, Optional
+from typing import List, Type, Optional, Tuple
 
 import MKUtils
 import tqdm
@@ -74,7 +74,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     return data
 
 
-def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.DataFrame:
+def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> Tuple[pd.DataFrame]:
     """Segment colonies and single cells of frame set.
 
     Produces two intermediate files with segmentation output and dataframe output, that can both be used at cache to speed up expensive calculations.
@@ -106,13 +106,21 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
         label=label,
         metadata=frame_set.metadata
     )
+    ss_df = DataProcessor.dataframe_from_single_cells(
+        data=data,
+        label=label,
+        metadata=frame_set.metadata
+    )
     logging.info(f'Finished making dataframe for {label}')
 
-    return df
+    return df, ss_df
     
 
-def dataframe_filepath(directory: str) -> str:
-    return os.path.join(directory, f'dataframe_{DATAFRAME_VERSION}.json')
+def dataframe_filepath(directory: str, dataframe_version: str = DATAFRAME_VERSION) -> str:
+    return os.path.join(directory, f'dataframe_{dataframe_version}.json')
+
+def ss_dataframe_filepath(directory: str, dataframe_version: str = DATAFRAME_VERSION) -> str:
+    return os.path.join(directory, f'dataframe_ss_{dataframe_version}.json')
 
 def load_dataframe(dataframe_file: str) -> Optional[pd.DataFrame]:
     try:
@@ -129,6 +137,8 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
     logging.info('Starting analysis')
     
     dataframe_file = dataframe_filepath(directory=output_config.output_dir)
+    ss_dataframe_file = ss_dataframe_filepath(directory=output_config.output_dir)
+
     if output_config.cache_dataframe:
         df = load_dataframe(dataframe_file=dataframe_file)
         if df is not None:
@@ -155,9 +165,15 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
         pool.terminate()
         pool.join()
         return None
+    
+    colony_dfs, single_cell_dfs = zip(*dataframes)
 
-    df = pd.concat(dataframes, axis=0)
+    df = pd.concat(colony_dfs, axis=0, ignore_index=True)
     df.reset_index(inplace=True)
     df.to_json(dataframe_file) # save to file 
     
+    df_ss = pd.concat(single_cell_dfs, axis=0, ignore_index=True)
+    df_ss.reset_index(inplace=True)
+    df_ss.to_json(ss_dataframe_file) # save to file 
+
     return df
