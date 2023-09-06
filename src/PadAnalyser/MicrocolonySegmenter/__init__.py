@@ -49,7 +49,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     dinfo = DInfo(
         label=label,
         live_plot=False,
-        file_plot=True,
+        file_plot=False,
         video=True,
         image_dir=image_dir,
         video_dir=video_dir,
@@ -106,7 +106,7 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> Tuple
         label=label,
         metadata=frame_set.metadata
     )
-    ss_df = DataProcessor.dataframe_from_single_cells(
+    ss_df = DataProcessor.single_cell_dataframe_from_data_series(
         data=data,
         label=label,
         metadata=frame_set.metadata

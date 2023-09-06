@@ -116,7 +116,7 @@ def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dic
     multi_keys = ['ss_area', 'ss_aspect_ratio', 'ss_aspect_ratio_max_width', 'ss_centroid', 'ss_dist_sums', 'ss_length', 'ss_max_width', 'ss_width']
     single_keys = ['time', 'ss_count']
 
-    print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
+    # print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
 
     time_list_of_multi_dicts = [{k:v for k, v in zip(multi_keys, values)} for values in zip(*[data[key] for key in multi_keys])]
     time_list_of_single_dicts = [{k:v for k, v in zip(single_keys, values)} for values in zip(*[data[key] for key in single_keys])]
