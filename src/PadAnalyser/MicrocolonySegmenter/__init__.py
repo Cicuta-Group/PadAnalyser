@@ -7,7 +7,7 @@ MODEL_VERSION = 'M1.03'
 from PadAnalyser.FrameSet import FrameSet
 from PadAnalyser.OutputConfig import OutputConfig
 import pandas as pd
-from typing import List, Type
+from typing import List, Type, Optional
 
 import MKUtils
 import tqdm
@@ -121,13 +121,30 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> pd.Da
     return df
     
 
+def dataframe_filepath(directory: str) -> str:
+    return os.path.join(directory, f'dataframe_{DATAFRAME_VERSION}.parquet.gzip')
+
+def load_dataframe(dataframe_file: str) -> Optional[pd.DataFrame]:
+    try:
+        return pd.read_parquet(path=dataframe_file)
+    except (ValueError, FileNotFoundError):
+        pass
+    except Exception:
+        logging.exception(f'Could not load dataframe {dataframe_file}.')
+
+
 def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
         
     # try to load from individual data-files or segment from scratch
     logging.info('Starting analysis')
     
-    # dataframe_file = os.path.join(output_config.output_dir, 'dataframe.json')
-
+    dataframe_file = dataframe_filepath(directory=output_config.output_dir)
+    if output_config.cache_dataframe:
+        df = load_dataframe(dataframe_file=dataframe_file)
+        if df is not None:
+            logging.info(f'Loaded dataframe from cache {dataframe_file}.')
+            return df
+        
     try:
         with Pool(processes=output_config.process_count) as pool:
 
@@ -151,7 +168,9 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
 
     df = pd.concat(dataframes, axis=0)
     df.reset_index(inplace=True)
-    df.to_json()
+    df.to_parquet(dataframe_file) # save to file 
+
+
 
     # set round_time based on smallest time with given round_index
     # find time series that starts with smallest value (i.e. is from first imaged location) for round_times
