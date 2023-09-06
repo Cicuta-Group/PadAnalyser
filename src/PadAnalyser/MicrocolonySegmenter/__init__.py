@@ -1,5 +1,5 @@
 SEGMENTATION_VERSION = 'S1.23'
-DATAFRAME_VERSION = 'D1.14'
+DATAFRAME_VERSION = 'D1.15'
 PLOT_VERSION = 'P1.21'
 MODEL_VERSION = 'M1.03'
 
@@ -165,7 +165,7 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
         pool.terminate()
         pool.join()
         return None
-    
+
     colony_dfs, single_cell_dfs = zip(*dataframes)
 
     df = pd.concat(colony_dfs, axis=0, ignore_index=True)
