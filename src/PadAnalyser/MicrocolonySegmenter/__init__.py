@@ -144,27 +144,30 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
         if df is not None:
             logging.info(f'Loaded dataframe from cache {dataframe_file}.')
             return df
-        
+    
+    pool = Pool(processes=output_config.process_count)
     try:
-        with Pool(processes=output_config.process_count) as pool:
-
-            # Analyze videos to produce timeseries data vectors
-            dataframes = list(
-                tqdm.tqdm( # display progress bar, https://stackoverflow.com/a/45276885/1502517
-                    pool.imap_unordered( # map with generator, trigger evaluation using outer list
-                        partial(
-                            segment_frame_set,
-                            output_config=output_config,
-                        ),
-                        frame_sets
-                    ), total=len(frame_sets)
-                )
+        # Analyze videos to produce timeseries data vectors
+        dataframes = list(
+            tqdm.tqdm( # display progress bar, https://stackoverflow.com/a/45276885/1502517
+                pool.imap_unordered( # map with generator, trigger evaluation using outer list
+                    partial(
+                        segment_frame_set,
+                        output_config=output_config,
+                    ),
+                    frame_sets
+                ), total=len(frame_sets)
             )
+        )
     except KeyboardInterrupt:
         print("Detected KeyboardInterrupt. Terminating workers.")
         pool.terminate()
         pool.join()
         return None
+    finally:
+        pool.terminate()
+        pool.join()
+
 
     colony_dfs, single_cell_dfs = zip(*dataframes)
 
