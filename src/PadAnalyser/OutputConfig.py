@@ -19,7 +19,7 @@ class OutputConfig:
     process_count: Optional[int] # number of processes to run in paralell. 1 for single threaded. None for as many as possible. 
 
     font_file: str = 'arial.ttf' # font file for text overlay on images
-    dataframe_version = 'D1.0'
+    dataframe_version: str = 'D1.0'
 
     def _make_dir(self, dir_name: str):
         if dir_name and not os.path.exists(dir_name):
