@@ -1,8 +1,3 @@
-SEGMENTATION_VERSION = 'S1.23'
-DATAFRAME_VERSION = 'D1.15'
-PLOT_VERSION = 'P1.21'
-MODEL_VERSION = 'M1.03'
-
 # typehint types
 from PadAnalyser.FrameSet import FrameSet
 from PadAnalyser.OutputConfig import OutputConfig
@@ -32,7 +27,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
 
     image_dir = MKUtils.join_and_make_path(debug_dir, 'img', clear=clear_dirs)
     video_dir = MKUtils.join_and_make_path(debug_dir, 'mov', clear=clear_dirs)
-    segmentation_file = MKUtils.join_and_make_path(output_dir, 'segmentation', f'{label}_{SEGMENTATION_VERSION}.json')
+    segmentation_file = MKUtils.join_and_make_path(output_dir, 'segmentation', f'{label}.json')
 
     # try to recover segmentation information from file
     if output_config.cache_segmentation:

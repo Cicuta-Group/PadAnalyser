@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-from . import MKSegmentUtils, DataUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
+from . import MKSegmentUtils, DataUtils
 
 # try:
 #     import CellClassifier

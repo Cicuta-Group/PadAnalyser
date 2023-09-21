@@ -3,7 +3,7 @@ import os, glob, shutil
 import seaborn as sns
 
 import MKUtils
-from MKImageAnalysis import PlotPads, MKAnalysisUtils, MODEL_VERSION, SEGMENTATION_VERSION, experiment_folder_name
+from MKImageAnalysis import PlotPads, MKAnalysisUtils, experiment_folder_name
 
 import pathlib
 
@@ -27,7 +27,7 @@ Workflow for a given experiment:
 - Add column to dataframe based on predictions
 '''
 
-MODEL_NAME = f'model_{MODEL_VERSION}.tflite'
+# MODEL_NAME = f'model_{MODEL_VERSION}.tflite'
 
 
 def save_model(model, model_path):
@@ -83,29 +83,29 @@ def mask_is_cell_score(filename, model, model_input, model_output):
 
 # Takes the path to all masks, and adds column to dataframe with confidence of that colony beeing debris
 # Does not move any images -> much faster, but harder to verify
-def add_is_debris_score_column(df):
-    mask_directory = config('WORK_DIRECTORY')
-    model_path = os.path.join(mask_directory, MODEL_NAME)
-    model, model_input, model_output = load_model(model_path)
+# def add_is_debris_score_column(df):
+#     mask_directory = config('WORK_DIRECTORY')
+#     model_path = os.path.join(mask_directory, MODEL_NAME)
+#     model, model_input, model_output = load_model(model_path)
 
-    for experiment, df_g in df.groupby('experiment'):
-        all_masks_path = os.path.join(mask_directory, experiment_folder_name(experiment), 'all_masks')
-        files = os.listdir(all_masks_path)
-        label_names = [f.split('_x')[0] for f in files]
+#     for experiment, df_g in df.groupby('experiment'):
+#         all_masks_path = os.path.join(mask_directory, experiment_folder_name(experiment), 'all_masks')
+#         files = os.listdir(all_masks_path)
+#         label_names = [f.split('_x')[0] for f in files]
 
-        for _, df_query in df_g.groupby(PlotPads.SERIES_KEY):
-            label = df_query['label'].iloc[0]
-            name = df_query['colony_name'].iloc[0]
-            label_name = f'{label}_n{name}'
+#         for _, df_query in df_g.groupby(PlotPads.SERIES_KEY):
+#             label = df_query['label'].iloc[0]
+#             name = df_query['colony_name'].iloc[0]
+#             label_name = f'{label}_n{name}'
 
-            try:
-                i = label_names.index(label_name)
-                is_cell_score = mask_is_cell_score(filename=os.path.join(all_masks_path, files[i]), model=model, model_input=model_input, model_output=model_output)
-            except Exception as e:
-                logging.error(f'Could not find the mask {label_name} in {all_masks_path}. {e}')
-                is_cell_score = np.NaN
+#             try:
+#                 i = label_names.index(label_name)
+#                 is_cell_score = mask_is_cell_score(filename=os.path.join(all_masks_path, files[i]), model=model, model_input=model_input, model_output=model_output)
+#             except Exception as e:
+#                 logging.error(f'Could not find the mask {label_name} in {all_masks_path}. {e}')
+#                 is_cell_score = np.NaN
 
-            df.loc[df_query.index, 'is_cell_score'] = is_cell_score
+#             df.loc[df_query.index, 'is_cell_score'] = is_cell_score
 
 
 
@@ -211,30 +211,30 @@ def predict_all_to_folder(source_path, prediction_path, model_filename):
         shutil.copy(f, out_path) 
         
 
-import logging
-import pandas as pd
+# import logging
+# import pandas as pd
 
-def generate_predictions_for_experiment(df: pd.DataFrame, mask_directory: str, output_mask_directory: str):
+# def generate_predictions_for_experiment(df: pd.DataFrame, mask_directory: str, output_mask_directory: str):
     
-    for experiment, df_g in df.groupby('experiment'):
-        logging.info(f'Debris model for {experiment}')
+#     for experiment, df_g in df.groupby('experiment'):
+#         logging.info(f'Debris model for {experiment}')
         
-        input_directory = os.path.join(mask_directory, experiment_folder_name(experiment), 'all_masks')
-        output_experiment_directory = os.path.join(output_mask_directory, experiment_folder_name(experiment))
+#         input_directory = os.path.join(mask_directory, experiment_folder_name(experiment), 'all_masks')
+#         output_experiment_directory = os.path.join(output_mask_directory, experiment_folder_name(experiment))
         
-        MKUtils.generate_directory(output_experiment_directory)
+#         MKUtils.generate_directory(output_experiment_directory)
 
-        relevant_masks_directory = os.path.join(output_experiment_directory, 'relevant_masks')
-        predictions_path = os.path.join(output_experiment_directory, 'predictions')
+#         relevant_masks_directory = os.path.join(output_experiment_directory, 'relevant_masks')
+#         predictions_path = os.path.join(output_experiment_directory, 'predictions')
 
-        model_path = os.path.join(output_mask_directory, MODEL_NAME)
-        print(model_path, output_mask_directory)
+#         model_path = os.path.join(output_mask_directory, MODEL_NAME)
+#         print(model_path, output_mask_directory)
 
-        logging.info(f'Copy relevant colonies from {input_directory} to {relevant_masks_directory}')
-        copy_relevant_colony_masks(df_g, input_path=input_directory, output_path=relevant_masks_directory)
+#         logging.info(f'Copy relevant colonies from {input_directory} to {relevant_masks_directory}')
+#         copy_relevant_colony_masks(df_g, input_path=input_directory, output_path=relevant_masks_directory)
         
-        logging.info(f'Predict on masks in {relevant_masks_directory} to {predictions_path} using model {model_path}')
-        predict_all_to_folder(source_path=relevant_masks_directory, prediction_path=predictions_path, model_filename=model_path)
+#         logging.info(f'Predict on masks in {relevant_masks_directory} to {predictions_path} using model {model_path}')
+#         predict_all_to_folder(source_path=relevant_masks_directory, prediction_path=predictions_path, model_filename=model_path)
 
-        logging.info(f'Add column to dataframe from {CONFIDENT_NAME}')
-        add_is_debris_ml_column(df=df_g, cell_path=os.path.join(predictions_path, CONFIDENT_NAME))
+#         logging.info(f'Add column to dataframe from {CONFIDENT_NAME}')
+#         add_is_debris_ml_column(df=df_g, cell_path=os.path.join(predictions_path, CONFIDENT_NAME))
