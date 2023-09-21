@@ -113,10 +113,10 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> Tuple
     return df, ss_df
     
 
-def dataframe_filepath(directory: str, dataframe_version: str = DATAFRAME_VERSION) -> str:
+def dataframe_filepath(directory: str, dataframe_version: str) -> str:
     return os.path.join(directory, f'dataframe_{dataframe_version}.json')
 
-def ss_dataframe_filepath(directory: str, dataframe_version: str = DATAFRAME_VERSION) -> str:
+def ss_dataframe_filepath(directory: str, dataframe_version: str) -> str:
     return os.path.join(directory, f'dataframe_ss_{dataframe_version}.json')
 
 def load_dataframe(dataframe_file: str) -> Optional[pd.DataFrame]:
@@ -133,8 +133,8 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
     # try to load from individual data-files or segment from scratch
     logging.info('Starting analysis')
     
-    dataframe_file = dataframe_filepath(directory=output_config.output_dir)
-    ss_dataframe_file = ss_dataframe_filepath(directory=output_config.output_dir)
+    dataframe_file = dataframe_filepath(directory=output_config.output_dir, dataframe_version=output_config.dataframe_version)
+    ss_dataframe_file = ss_dataframe_filepath(directory=output_config.output_dir, dataframe_version=output_config.dataframe_version)
 
     if output_config.cache_dataframe:
         df = load_dataframe(dataframe_file=dataframe_file)
