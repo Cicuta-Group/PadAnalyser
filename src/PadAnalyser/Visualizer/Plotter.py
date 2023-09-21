@@ -9,21 +9,6 @@ from decouple import config
 
 SERIES_KEY = 'labelid'
 
-def mapping_for_experiment(experiment):
-    input_points_directory = config('INPUT_POINTS_DIRECTORY')
-    mapping_file = os.path.join(input_points_directory, 'BE_condition_map.json') # '/Users/mkals/Developer/Cambridge/BacterialImaging/point_sets/BE_condition_map.json'
-    with open(mapping_file, 'r') as f:
-        d = f.read()
-        d = d.replace('Âµ', 'µ')
-        experiment_maps = json.loads(d)
-
-    for experiment_map in experiment_maps:
-        if experiment in experiment_map['experiments'].keys():
-            return experiment_map
-
-    raise Exception(f'Error - could not find experiment map for {experiment}.')
-
-
 def find_numeric_and_text_keys(experiment_map):
     condition_sets = experiment_map['condition_sets']
     all_keys = list(condition_sets.keys())

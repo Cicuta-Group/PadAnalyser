@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-from . import DataUtils, MKSegmentUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
+from . import MKSegmentUtils, DataUtils #, PLOT_VERSION, DATAFRAME_VERSION, SEGMENTATION_VERSION
 
 # try:
 #     import CellClassifier
@@ -199,16 +199,6 @@ def replace_col_name(df, old_name, new_name):
 #     df.reset_index(inplace=True)
 #     return df, numeric_keys, text_keys
 
-# def get_graph_folder(experiment: str, segmentation_version=None, plot_version=None):
-    
-#     if segmentation_version is None: segmentation_version = SEGMENTATION_VERSION
-#     if plot_version is None: plot_version = PLOT_VERSION
-
-#     if not isinstance(experiment, str): experiment = 'Set_' + '_'.join(experiment) # in case experiment is a list
-#     output_directory = config('OUTPUT_DIRECTORY') # '/Users/mkals/Library/CloudStorage/OneDrive-UniversityofCambridge/data/'
-#     output_directory = os.path.join(output_directory, experiment_folder_name(experiment, segmentation_version=segmentation_version))
-#     return DataUtils.append_path(output_directory, f'graphs_{plot_version}')
-
 
 #### Condition mapping and information extraction
 
@@ -225,6 +215,14 @@ def condition_label(text_keys, text_values, numeric_key):
     
     lowercase_first_char = lambda s: s[:1].lower() + s[1:] if s else ''
     return lowercase_first_char(label.strip())
+
+
+def add_antibiotic_and_concentration_columns(df, antibiotic_keys):
+    """Adds columns for antibiotic and concentration to dataframe
+    Assumes only one antibiotic per pad
+    """
+    df["Antibiotic"] = df[antibiotic_keys].idxmax(1).str.split(' ').str[0]
+    df["Concentration"] = df[antibiotic_keys].max(1)
 
 
 ### Mathods to add columns to dataframe
@@ -421,7 +419,7 @@ def add_repeat_column_ignore_control(df):
 def add_normalized_column(df, key, numeric_keys, text_keys):
     for experiment, dfe in df.groupby('experiment'):
         for numeric_key in numeric_keys:
-            for values, df_query in Plotter.groupby(dfe, text_keys):
+            for values, df_query in DataUtils.groupby(dfe, text_keys):
                 free_mean_value = df_query.query(f'`{numeric_key}` == 0')[key].mean()
                 df.loc[df_query.index, f'{key}_normalized'] = df_query[key]/free_mean_value
 
@@ -429,7 +427,7 @@ def add_normalized_column(df, key, numeric_keys, text_keys):
 # normalize to mean value 
 def add_normalized_to_self_column(df, key, numeric_keys, text_keys):
     for experiment, dfe in df.groupby('experiment'):
-        for values, df_query in Plotter.groupby(dfe, numeric_keys + text_keys):
+        for values, df_query in DataUtils.groupby(dfe, numeric_keys + text_keys):
             start_group = df_query.groupby('round_time_hours').agg({key: 'mean'})
             free_mean_value = start_group.iloc[1]
             df.loc[df_query.index, f'{key}_normalized'] = df_query[key]/float(free_mean_value)
@@ -481,13 +479,13 @@ def colony_agg_dataframe(df, numeric_keys, text_keys):
     df_o.sort_values('time', inplace=True)
     df_o.reset_index(inplace=True)
 
-    Plotter.low_pass_filter_column(df=df_o, column='colony_area')
-    Plotter.low_pass_filter_column(df=df_o, column='ss_area_total')
-    Plotter.low_pass_filter_column(df=df_o, column='ss_area_count')
+    low_pass_filter_column(df=df_o, column='colony_area')
+    low_pass_filter_column(df=df_o, column='ss_area_total')
+    low_pass_filter_column(df=df_o, column='ss_area_count')
 
-    Plotter.add_growth_rate_time_series_columns(df=df_o, fit_to_key='colony_area')
-    Plotter.add_growth_rate_time_series_columns(df=df_o, fit_to_key='ss_area_total')
-    Plotter.add_growth_rate_time_series_columns(df=df_o, fit_to_key='ss_area_count')
+    add_growth_rate_time_series_columns(df=df_o, fit_to_key='colony_area')
+    add_growth_rate_time_series_columns(df=df_o, fit_to_key='ss_area_total')
+    add_growth_rate_time_series_columns(df=df_o, fit_to_key='ss_area_count')
 
     return df_o
 

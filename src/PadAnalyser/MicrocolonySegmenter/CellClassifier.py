@@ -212,17 +212,13 @@ def predict_all_to_folder(source_path, prediction_path, model_filename):
         
 
 import logging
-from decouple import config
 import pandas as pd
 
-def generate_predictions_for_experiment(df: pd.DataFrame):
+def generate_predictions_for_experiment(df: pd.DataFrame, mask_directory: str, output_mask_directory: str):
     
     for experiment, df_g in df.groupby('experiment'):
         logging.info(f'Debris model for {experiment}')
         
-        mask_directory = config('MASK_DIRECTORY')
-        output_mask_directory = config('OUTPUT_MASK_DIRECTORY', mask_directory)
-
         input_directory = os.path.join(mask_directory, experiment_folder_name(experiment), 'all_masks')
         output_experiment_directory = os.path.join(output_mask_directory, experiment_folder_name(experiment))
         

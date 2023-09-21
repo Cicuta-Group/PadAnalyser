@@ -28,6 +28,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     output_dir = output_config.output_dir
     debug_dir = output_config.debug_dir
     mask_dir = output_config.mask_dir
+    font_file = output_config.font_file
 
     image_dir = MKUtils.join_and_make_path(debug_dir, 'img', clear=clear_dirs)
     video_dir = MKUtils.join_and_make_path(debug_dir, 'mov', clear=clear_dirs)
@@ -61,7 +62,8 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     data = MKTimeseriesAnalyzer.analyze_time_seriess(
         frame_set=frame_set,
         mask_folder=mask_dir, 
-        label=label, 
+        label=label,
+        font_file=font_file,
         dinfo=dinfo,
     )
     

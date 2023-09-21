@@ -14,9 +14,6 @@ except ImportError:
 
 from scipy import ndimage
 
-from decouple import config
-font_file = config('FONT_FILE', default='arial.ttf')
-
 
 UM_PER_PIXEL = 0.112 # for Genicam with 40x objective
 # UM_PER_PIXEL = 0.147 # for Grashopper with 40x objective
@@ -175,6 +172,9 @@ def split_contour_by_point_distance(contour: np.array, min_distance: float = 2, 
                 return split_contour_by_point_distance(ca, min_distance=min_distance, preview=preview) + split_contour_by_point_distance(cb, min_distance=min_distance, preview=preview)
 
     return [contour]
+
+
+
 
 
 '''
@@ -407,6 +407,12 @@ def centroid(contour):
     y = int(m["m10"] / m00)
     return x, y
 
+def cell_distance_from_colony_border(cell_centroids, colony_contours, frame_shape):
+        colony_mask = np.zeros(frame_shape)
+        cv.drawContours(colony_mask, contours=colony_contours, contourIdx=-1, color=1, thickness=cv.FILLED)
+        colony_edt = ndimage.distance_transform_edt(colony_mask)
+        return [colony_edt[point[0][0][1], point[0][0][0]] * UM_PER_PIXEL for point in cell_centroids]
+
 def contours_in_box(contours, bound):
     '''
     return boolean array indicating if relevant conours is fully inside the boinding box.
@@ -535,8 +541,6 @@ def window_kernel(xs, ys, shape):
     return k
 
 
-
-
 ### Colors
 
 
@@ -546,12 +550,10 @@ def color_for_number(number):
 
 
 
-
-
 ### Plotting
 
 
-def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1):
+def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, contour_color_function=None, contour_labels=None):
     
     if not dinfo.live_plot and not dinfo.file_plot: # for performance
         return 
@@ -562,7 +564,13 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1):
     if contours:
         f = np.stack((f,)*3, axis=-1)
         for i, _ in enumerate(contours):
-            f = cv.drawContours(f, contours, contourIdx=i, color=color_for_number(i), thickness=contour_thickness)
+            color = color_for_number(i) if contour_color_function == None else contour_color_function(i, contours[i])
+            f = cv.drawContours(f, contours, contourIdx=i, color=color, thickness=contour_thickness)
+
+        if contour_labels:
+            for label, contour in zip(contour_labels, contours):
+                x,y = centroid(contour)
+                f = text_on_frame(f, label, (x+10,y+10), dinfo.font_file)
 
     if dinfo.crop != None:
         (x0,x1), (y0, y1) = dinfo.crop
@@ -633,7 +641,7 @@ def plot_contour(c):
 '''
 Add text to frame
 '''
-def text_on_frame(frame, text, position):
+def text_on_frame(frame, text, position, font_file):
     image = Image.fromarray(frame, 'RGB' if len(frame.shape) == 3 else None)
     canvas = ImageDraw.Draw(image)
     try:
@@ -649,7 +657,7 @@ def translate_contours(contours, offset):
     return [contour+offset for contour in contours]
 
 
-def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times, ss_stroke, dinfo, output_frames=False):
+def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times, ss_stroke, dinfo, font_file='arial.ttf', output_frames=False):
         FPS = 5
         out = cv.VideoWriter(os.path.join(dinfo.video_dir, f'{dinfo.label}.mp4'), cv.VideoWriter_fourcc(*'mp4v'), FPS, frames_ts[0].shape[::-1])
 
@@ -673,8 +681,8 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
             debug_label = f'{dinfo.label}, {frame_label}'
             time_label = f'{time//(60*60):02.0f}:{(time//60) % 60:02.0f}:{time % 60:02.0f}'
             time_label_full = f'time = {time_label}'
-            debug_frame = text_on_frame(debug_frame, debug_label, position=(10, 20))
-            debug_frame = text_on_frame(debug_frame, time_label_full, position=(10, 50))
+            debug_frame = text_on_frame(debug_frame, debug_label, position=(10, 20), font_file=font_file)
+            debug_frame = text_on_frame(debug_frame, time_label_full, position=(10, 50), font_file=font_file)
 
             out.write(debug_frame)
 

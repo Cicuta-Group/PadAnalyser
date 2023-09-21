@@ -7,6 +7,8 @@ import collections
 from sklearn.neighbors import NearestNeighbors
 import cv2 as cv
 import logging
+import os
+from PIL import Image
 
 from PadAnalyser.FrameSet import FrameSet
 from . import MKSegment, MKSegmentUtils, MKLineageTracker, DInfo
@@ -169,14 +171,12 @@ def ss_ids_from_col_ids(ss_contours, cs_contours, cs_ids, f_shape, dinfo):
     return ss_ids
 
 
-def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinfo: DInfo.DInfo):
+def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, font_file: str, dinfo: DInfo.DInfo):
 
     dinfos = [dinfo.append_to_label(str(i)) for i in range(len(frame_set))]
-
-    
-
+  
     # Flatten stacks and preprocess frames
-    frames_ts, laplacian_frames_ts, times = zip(*[(*MKSegment.flatten_stack(z_stack, d), time) for (z_stack, time), d in zip(frame_set, dinfos)])
+    frames_ts, laplacian_frames_ts, plane_coefficients_ts, times = zip(*[(*MKSegment.flatten_stack(z_stack, d), time) for (z_stack, time), d in zip(frame_set, dinfos)])
 
     # frames_ts, laplacian_frames_ts = zip(*[MKSegment.flatten_stack([movie[i] for i in stack_indices], d.append_to_label(f'fs')) for stack_indices, d in zip(indices, dinfos)])
     
@@ -185,9 +185,21 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
 
     frame_shape = frames_ts[0].shape
 
-    # Compute contours
+    # Compute contours (masks with each colony filled with different integer color)
     cs_contours_ts = [MKSegment.bf_colony_segment(l, d.append_to_label('cs')) for l, d in zip(laplacian_frames_ts, dinfos)]
     ss_contours_ts = [MKSegment.bf_single_cell_segment(f, cs, d.append_to_label('ss')) for f, cs, d in zip(frames_ts, cs_contours_ts, dinfos)]
+
+    # for i, (f, cs, ss, d) in enumerate(zip(frames_ts, cs_contours_ts, ss_contours_ts, dinfos)):
+        
+    #     # filter ss_contours based on cs_contours
+    #     ss_contours_ts[i] = [ss_contours_ts[i][j] for j, c in enumerate(cs_contours_ts[i]) if MKSegmentUtils.on_border(c, bound=(0,0,frame_shape[1],frame_shape[0]))]
+        
+    #     # link ss ids to cs ids
+        
+    #     MKSegmentUtils.plot_frame(f, dinfo=d.append_to_label('f'))
+    #     MKSegmentUtils.plot_frame(MKSegmentUtils.norm(cs), dinfo=d.append_to_label('cs'))
+    #     MKSegmentUtils.plot_frame(MKSegmentUtils.norm(ss), dinfo=d.append_to_label('ss'))
+
 
     # Compute centroids
     cs_centroids_ts = MKSegmentUtils.twoD_stats(MKSegmentUtils.centroid, cs_contours_ts)
@@ -236,19 +248,20 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
 
     if dinfo.video:
         # Colony with image as background
-        MKSegmentUtils.masks_to_movie(
-            frames_ts=frames_ts, 
-            cs_contours_ts=cs_contours_ts, 
-            cs_ids_ts=cs_ids_ts, 
-            ss_contours_ts=ss_contours_ts, 
-            ss_ids_ts=ss_ids_ts, 
-            cumulative_offset_ts=cumulative_offset_ts, 
-            cs_on_border_ts=cs_on_border_ts, 
-            frame_labels=frame_labels, 
-            times=times, 
-            ss_stroke=1, 
-            dinfo=dinfo.append_to_label('csi'),
-        )
+        # MKSegmentUtils.masks_to_movie(
+        #     frames_ts=frames_ts, 
+        #     cs_contours_ts=cs_contours_ts, 
+        #     cs_ids_ts=cs_ids_ts, 
+        #     ss_contours_ts=ss_contours_ts, 
+        #     ss_ids_ts=ss_ids_ts, 
+        #     cumulative_offset_ts=cumulative_offset_ts, 
+        #     cs_on_border_ts=cs_on_border_ts, 
+        #     frame_labels=frame_labels, 
+        #     times=times, 
+        #     ss_stroke=1, 
+        #     font_file=font_file,
+        #     dinfo=dinfo.append_to_label('csi'),
+        # )
 
         ss_unique_ids_ts = [list(range(len(ids))) for ids in ss_ids_ts]
 
@@ -264,6 +277,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
             times=times, 
             ss_stroke=1,
             output_frames=True,
+            font_file=font_file,
             dinfo=dinfo.append_to_label('css'),
         )
 
@@ -281,6 +295,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=1, 
+        #     font_file=font_file,
         #     dinfo=dinfo.append_to_label('csl'),
         # )
         
@@ -294,8 +309,9 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
             cumulative_offset_ts=cumulative_offset_ts, 
             cs_on_border_ts=cs_on_border_ts, 
             frame_labels=frame_labels, 
-            times=times, 
+            times=times,
             ss_stroke=cv.FILLED, 
+            font_file=font_file,
             dinfo=dinfo.append_to_label('ssi'),
         )
 
@@ -311,6 +327,7 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=cv.FILLED, 
+        #     font_file = font_file,
         #     dinfo=dinfo.append_to_label('img'),
         # ) 
 
@@ -326,20 +343,33 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         #     frame_labels=frame_labels, 
         #     times=times, 
         #     ss_stroke=cv.FILLED, 
+        #     font_file = font_file,
         #     dinfo=dinfo.append_to_label('lap'),
-        # ) 
+        # )
 
 
-    MKSegmentUtils.export_masks_for_first_generation(
-        cs_contours_ts=cs_contours_ts,
-        names_ts=id_objects['names'], 
-        frames_ts=frames_ts,
-        label=label,
-        output_folder=mask_folder,        
-    )
+    # MKSegmentUtils.export_masks_for_first_generation(
+    #     cs_contours_ts=cs_contours_ts,
+    #     names_ts=id_objects['names'], 
+    #     frames_ts=frames_ts,
+    #     label=label,
+    #     output_folder=mask_folder,        
+    # )
 
     ### Collect statistics
     # All 2D statistics is in lists of the form (time, colony/cell)
+
+    ss_centroids_ts = MKSegmentUtils.twoD_stats(MKSegmentUtils.centroid, ss_contours_ts)
+    ss_distance_from_colony_edge_ts = [
+        MKSegmentUtils.cell_distance_from_colony_border(ss_centroids, colony_contours, frame_shape)
+        for ss_centroids , colony_contours in zip(ss_centroids_ts, cs_contours_ts)
+    ]
+
+    # Output each collapsed z-stack frame so annotated images can be generated later
+    filenames = [f'frame_{label}_{i:03d}.tif' for i in range(len(frames_ts))]
+    for f, name in enumerate(zip(frames_ts, filenames)):
+        im = Image.fromarray(np.uint8(f))
+        im.save(os.path.join(dinfo.image_dir, name))
 
     return {
         'time': times,
@@ -357,8 +387,17 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, dinf
         'colony_ID_name_map': id_objects['ID_name_map'],
 
         # Single cell statistics for each cell for each timestep
-        'ss_count':           MKSegmentUtils.oneD_stats(len, ss_contours_ts), # overall count in frame for each timestep
-        'ss_centroid':        MKSegmentUtils.twoD_stats(MKSegmentUtils.centroid, ss_contours_ts),
-                            **MKSegmentUtils.ss_stats_from_contours_ts(ss_contours_ts),
-        'ss_id':              ss_ids_ts,
+                                      **MKSegmentUtils.ss_stats_from_contours_ts(ss_contours_ts),
+        'ss_count':                     MKSegmentUtils.oneD_stats(len, ss_contours_ts), # overall count in frame for each timestep
+        'ss_id':                        ss_ids_ts,
+        'ss_centroid':                  ss_centroids_ts, # px,px
+        'ss_distance_from_colony_edge': ss_distance_from_colony_edge_ts,
+        'plane_coefficients':           plane_coefficients_ts,
+
+        # Raw information to reproduce masks
+        'cs_contours':                  cs_contours_ts,
+        'ss_contours':                  ss_contours_ts,
+        'cumulative_offset':            cumulative_offset_ts,
+        'times':                        times,
+        'filenames':                    filenames, 
     }
