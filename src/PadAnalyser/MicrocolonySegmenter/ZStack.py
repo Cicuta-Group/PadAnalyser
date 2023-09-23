@@ -6,6 +6,71 @@ from scipy.signal import find_peaks
 
 from . import MKSegmentUtils
 
+import skimage.transform
+import skimage.measure
+
+
+# def z_stack_projection(stack, dinfo: DInfo):
+#     fs = stack
+    
+#     # fs = [np.maximum(f-np.mean(fs), 0) for f in fs]
+
+#     # WINDOW_SIZE = 401  # choose an appropriate window size
+    
+#     # # Compute the local mean for each frame
+#     # local_means = [cv.boxFilter(f.astype(float), -1, (WINDOW_SIZE, WINDOW_SIZE)) for f in fs]
+#     # fs = [np.maximum(f - mean, 0) for f, mean in zip(fs, local_means)]
+    
+#     # for i, frame in enumerate(fs):
+#     #     print(f'frame {i} max {np.max(frame)}')
+#     #     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label(f'rbg {i}'))
+
+#     # # convert to uint8
+#     # fs = [f.astype(np.uint8) for f in fs]
+
+#     # Find second order gradients of each frame
+#     fs = [cv.GaussianBlur(f, (5, 5), 0) for f in fs] # blur, kernel size about feature size
+#     fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
+
+#     # Only keep negative gradients and make them positive (corresponds to area inside cells when in focus)
+#     fs = [np.maximum(-f, 0) for f in fs]
+    
+#     # Compute focus score for each pixel by downsampling with funciton that characterize information. Varience best when testing.
+#     KERNEL_SIZE = 61
+#     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.var), (f.shape)) for f in fs]
+    
+#     # Find index with highest score in stack for each pixel and pick in focus frame based on that
+#     f_max = np.argmax(np.array(fs), 0)
+#     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+
+#     # print('new')
+#     # # Compute local variance and mean
+#     # KERNEL_SIZE = 101
+#     # local_var = [cv.boxFilter(f**2,  -1, (KERNEL_SIZE, KERNEL_SIZE)) - cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE))**2 for f in fs]
+#     # local_mean = [cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE)) / (KERNEL_SIZE**2) for f in fs]
+
+#     # epsilon = 1e-5  # To prevent division by zero
+#     # focus_scores = [variance / (mean + epsilon) for variance, mean in zip(local_var, local_mean)]
+
+#     # # Find index with highest score in stack for each pixel and pick in-focus frame based on that
+#     # f_max = np.argmax(np.array(focus_scores), 0)
+#     # f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+
+#     # # Check histogram and invert if needed
+#     # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+#     # peak = bins[np.argmax(hist)]
+#     # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+#     #     f_focus = 255 - f_focus
+
+#     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
+#     MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
+
+#     return f_focus
+
+
+
+
+
 def laplacian(frame_raw):
     # compute laplacian compressed stack
     KERNEL_SIZE = 9
@@ -15,6 +80,73 @@ def laplacian(frame_raw):
     laplacian_frame = laplacian_frame.astype(np.int16)
 
     return laplacian_frame
+
+
+
+# Contounous projection based on low pass filter of laplacian areas. 
+def z_stack_projection_laplace(stack, dinfo):
+    fs = stack
+
+    # Compute gradients
+    fs = [laplacian(f) for f in fs]
+    
+    # Only keep negative gradients (center of cells)
+    fs = [np.maximum(-f, 0) for f in fs]
+    
+    # Compute focus score for each pixel by downsampling
+    KERNEL_SIZE = 101
+    fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
+
+    # Find index with highest score in stack for each pixel
+    f_max = np.argmax(np.array(fs), 0)
+    f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+    
+    # Check histogram and invert if needed
+    # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+    # peak = bins[np.argmax(hist)]
+    # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+    #     f_focus = 255 - f_focus
+    
+    MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
+    MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
+
+    return f_focus
+
+
+# Contounous projection based on low pass filter of laplacian areas. 
+def z_stack_projection_sobel(stack, dinfo):
+    fs = stack
+
+    # Apply Gaussian blur
+    fs_float = [cv.GaussianBlur(f, (5, 5), 0).astype(np.float32) for f in fs]
+
+    # Compute gradients using Sobel
+    gradients = [cv.Sobel(f, cv.CV_32F, 1, 1, ksize=3) for f in fs_float]
+    fs = gradients # [np.sqrt(np.square(grad[:,:,0]) + np.square(grad[:,:,1])) for grad in gradients]
+    
+    # Only keep positive gradients
+    fs = [np.maximum(f, 0) for f in fs]
+    
+    # Compute focus score for each pixel by downsampling
+    KERNEL_SIZE = 101
+    fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
+
+    # Find index with highest score in stack for each pixel
+    f_max = np.argmax(np.array(fs), 0)
+    f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+    
+    # Check histogram and invert if needed
+    # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+    # peak = bins[np.argmax(hist)]
+    # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+    #     f_focus = 255 - f_focus
+    
+    MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
+    MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best_'))
+
+    return f_focus
+
+
 
 # 1. Split frame into regions.
 # 2. For each region, compute preffered index. If no preferred index, return none.
@@ -43,7 +175,9 @@ def determine_global_tilt(center_positions, preferred_indices):
     
     if not points:
         raise ValueError("No preferred indices provided")
-    
+    if len(points) < 3:
+        raise ValueError("Not enough points to fit a plane, need at least 3")
+
     # Convert points and values to numpy arrays
     points = np.array(points)
     values = np.array(values)
@@ -87,14 +221,14 @@ def create_pixel_mask(frame_shape, plane_coefficients):
     return mask
 
 
-
+MIN_PROMINANE = 0.1
 def find_peaks_including_boundries(values):
 
-    peaks, _ = find_peaks(values)
+    peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
     # Including boundaries in the peaks if they are maxima
-    if values[0] > values[1]:
+    if values[0] > values[1] + MIN_PROMINANE:
         peaks = np.insert(peaks, 0, 0)
-    if values[-1] > values[-2]:
+    if values[-1] > values[-2] + MIN_PROMINANE:
         peaks = np.append(peaks, len(values) - 1)
 
     return peaks
@@ -122,9 +256,9 @@ def compute_preferred_index(z_stack):
     
     peaks = find_peaks_including_boundries(-means)
     
-    # plt.figure()
-    # plt.plot(means)
-    # plt.plot(peaks, means[peaks], "x")
+    plt.figure()
+    plt.plot(means)
+    plt.plot(peaks, means[peaks], "x")
     
     if peaks.size:
         # Step 3: If there are multiple peaks, choose the lower z-index
@@ -157,7 +291,10 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
         if dinfo.printing:
             print(np.array(z_scores))
 
-        plane_coefficients = determine_global_tilt(center_positions, z_scores)
+        try:
+            plane_coefficients = determine_global_tilt(center_positions, z_scores)
+        except ValueError:
+            return z_stack_projection_laplace(zstack, dinfo=dinfo), None
 
     mask = create_pixel_mask(ls.shape, plane_coefficients)
 
