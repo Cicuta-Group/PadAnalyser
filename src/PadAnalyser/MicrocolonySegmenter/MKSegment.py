@@ -6,97 +6,6 @@ import skimage.transform
 import scipy.signal
 
 
-# def z_stack_projection(stack, dinfo: DInfo):
-#     fs = stack
-    
-#     # fs = [np.maximum(f-np.mean(fs), 0) for f in fs]
-
-#     # WINDOW_SIZE = 401  # choose an appropriate window size
-    
-#     # # Compute the local mean for each frame
-#     # local_means = [cv.boxFilter(f.astype(float), -1, (WINDOW_SIZE, WINDOW_SIZE)) for f in fs]
-#     # fs = [np.maximum(f - mean, 0) for f, mean in zip(fs, local_means)]
-    
-#     # for i, frame in enumerate(fs):
-#     #     print(f'frame {i} max {np.max(frame)}')
-#     #     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label(f'rbg {i}'))
-
-#     # # convert to uint8
-#     # fs = [f.astype(np.uint8) for f in fs]
-
-#     # Find second order gradients of each frame
-#     fs = [cv.GaussianBlur(f, (5, 5), 0) for f in fs] # blur, kernel size about feature size
-#     fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
-
-#     # Only keep negative gradients and make them positive (corresponds to area inside cells when in focus)
-#     fs = [np.maximum(-f, 0) for f in fs]
-    
-#     # Compute focus score for each pixel by downsampling with funciton that characterize information. Varience best when testing.
-#     KERNEL_SIZE = 61
-#     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.var), (f.shape)) for f in fs]
-    
-#     # Find index with highest score in stack for each pixel and pick in focus frame based on that
-#     f_max = np.argmax(np.array(fs), 0)
-#     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
-
-#     # print('new')
-#     # # Compute local variance and mean
-#     # KERNEL_SIZE = 101
-#     # local_var = [cv.boxFilter(f**2,  -1, (KERNEL_SIZE, KERNEL_SIZE)) - cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE))**2 for f in fs]
-#     # local_mean = [cv.boxFilter(f, -1, (KERNEL_SIZE, KERNEL_SIZE)) / (KERNEL_SIZE**2) for f in fs]
-
-#     # epsilon = 1e-5  # To prevent division by zero
-#     # focus_scores = [variance / (mean + epsilon) for variance, mean in zip(local_var, local_mean)]
-
-#     # # Find index with highest score in stack for each pixel and pick in-focus frame based on that
-#     # f_max = np.argmax(np.array(focus_scores), 0)
-#     # f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
-
-#     # # Check histogram and invert if needed
-#     # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
-#     # peak = bins[np.argmax(hist)]
-#     # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
-#     #     f_focus = 255 - f_focus
-
-#     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
-#     MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
-
-#     return f_focus
-
-def z_stack_projection(stack, dinfo: DInfo):
-    fs = stack
-
-    # Apply Gaussian blur
-    fs_float = [cv.GaussianBlur(f, (5, 5), 0).astype(np.float32) for f in fs]
-
-    # Compute gradients using Sobel
-    gradients = [cv.Sobel(f, cv.CV_32F, 1, 1, ksize=3) for f in fs_float]
-    fs = gradients # [np.sqrt(np.square(grad[:,:,0]) + np.square(grad[:,:,1])) for grad in gradients]
-    
-    # Only keep positive gradients
-    fs = [np.maximum(f, 0) for f in fs]
-    
-    # Compute focus score for each pixel by downsampling
-    KERNEL_SIZE = 101
-    fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
-
-    # Find index with highest score in stack for each pixel
-    f_max = np.argmax(np.array(fs), 0)
-    f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
-    
-    # Check histogram and invert if needed
-    hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
-    peak = bins[np.argmax(hist)]
-    if peak < 128:  # Assuming 8-bit images with values between 0 and 255
-        f_focus = 255 - f_focus
-    
-    MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
-    MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best_'))
-
-    return f_focus
-
-
-
 # simple flatten stack with stitching 
 def flatten_stack(stack, dinfo):
 
@@ -125,14 +34,14 @@ def flatten_stack(stack, dinfo):
     return frame, laplacian_frame, plane_coefficients
 
 
-from skimage import morphology, filters, measure
-from skimage.morphology import disk, erosion
+from skimage import measure #, morphology, filters
+# from skimage.morphology import disk, erosion
 from skimage.filters import gaussian
 from skimage.segmentation import watershed
 from scipy import ndimage
-from skimage.feature import peak_local_max
-from skimage.segmentation import random_walker
-from scipy.ndimage import gaussian_laplace
+# from skimage.feature import peak_local_max
+# from skimage.segmentation import random_walker
+# from scipy.ndimage import gaussian_laplace
 from skimage.morphology import extrema
 from scipy.ndimage import convolve
 
