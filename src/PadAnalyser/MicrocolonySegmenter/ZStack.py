@@ -234,7 +234,7 @@ def find_peaks_including_boundries(values):
     return peaks
 
 
-def compute_preferred_index(z_stack):
+def compute_preferred_index(z_stack, dinfo):
     """
     Compute the preferred index for each region.
 
@@ -256,9 +256,10 @@ def compute_preferred_index(z_stack):
     
     peaks = find_peaks_including_boundries(-means)
     
-    plt.figure()
-    plt.plot(means)
-    plt.plot(peaks, means[peaks], "x")
+    if dinfo.debug:
+        plt.figure()
+        plt.plot(means)
+        plt.plot(peaks, means[peaks], "x")
     
     if peaks.size:
         # Step 3: If there are multiple peaks, choose the lower z-index
@@ -283,7 +284,7 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
         ]
 
         z_scores = [[
-                compute_preferred_index(ls[:, x:x+region_size[0], y:y+region_size[1]])
+                compute_preferred_index(ls[:, x:x+region_size[0], y:y+region_size[1]], dinfo=dinfo.append_to_label(f'z_{x}_{y}'))
                 for y in range(0, ls.shape[2], region_size[1])
             ] for x in range(0, ls.shape[1], region_size[0])
         ]
