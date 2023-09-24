@@ -367,8 +367,8 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, font
 
     # Output each collapsed z-stack frame so annotated images can be generated later
     filenames = [f'frame_{label}_{i:03d}.tif' for i in range(len(frames_ts))]
-    for f, name in enumerate(zip(frames_ts, filenames)):
-        im = Image.fromarray(np.uint8(f))
+    for f, name in zip(frames_ts, filenames):
+        im = Image.fromarray(f)
         im.save(os.path.join(dinfo.image_dir, name))
 
     return {

@@ -408,10 +408,10 @@ def centroid(contour):
     return x, y
 
 def cell_distance_from_colony_border(cell_centroids, colony_contours, frame_shape):
-        colony_mask = np.zeros(frame_shape)
-        cv.drawContours(colony_mask, contours=colony_contours, contourIdx=-1, color=1, thickness=cv.FILLED)
-        colony_edt = ndimage.distance_transform_edt(colony_mask)
-        return [colony_edt[point[0][0][1], point[0][0][0]] * UM_PER_PIXEL for point in cell_centroids]
+    colony_mask = np.zeros(frame_shape)
+    cv.drawContours(colony_mask, contours=colony_contours, contourIdx=-1, color=1, thickness=cv.FILLED)
+    colony_edt = ndimage.distance_transform_edt(colony_mask)
+    return [colony_edt[point[0], point[1]] * UM_PER_PIXEL for point in cell_centroids]
 
 def contours_in_box(contours, bound):
     '''
