@@ -26,8 +26,8 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     font_file = output_config.font_file
     debug_output = output_config.debug_output
 
-    image_dir = MKUtils.join_and_make_path(debug_dir, 'img', clear=clear_dirs)
-    video_dir = MKUtils.join_and_make_path(debug_dir, 'mov', clear=clear_dirs)
+    image_dir = MKUtils.join_and_make_path(output_dir, 'img', clear=clear_dirs)
+    video_dir = MKUtils.join_and_make_path(output_dir, 'mov', clear=clear_dirs)
     segmentation_file = MKUtils.join_and_make_path(output_dir, 'segmentation', f'{label}.json')
 
     # try to recover segmentation information from file
