@@ -21,6 +21,8 @@ class OutputConfig:
     font_file: str = 'arial.ttf' # font file for text overlay on images
     dataframe_version: str = 'D1.0'
 
+    debug_output: bool = False # output debug images and videos
+
     def _make_dir(self, dir_name: str):
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name)

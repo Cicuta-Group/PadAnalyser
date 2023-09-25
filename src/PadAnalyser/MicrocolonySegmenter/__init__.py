@@ -24,6 +24,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     debug_dir = output_config.debug_dir
     mask_dir = output_config.mask_dir
     font_file = output_config.font_file
+    debug_output = output_config.debug_output
 
     image_dir = MKUtils.join_and_make_path(debug_dir, 'img', clear=clear_dirs)
     video_dir = MKUtils.join_and_make_path(debug_dir, 'mov', clear=clear_dirs)
@@ -45,7 +46,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     dinfo = DInfo(
         label=label,
         live_plot=False,
-        file_plot=False,
+        file_plot=debug_output,
         video=True,
         image_dir=image_dir,
         video_dir=video_dir,

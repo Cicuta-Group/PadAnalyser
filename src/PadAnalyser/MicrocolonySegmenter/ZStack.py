@@ -256,7 +256,7 @@ def compute_preferred_index(z_stack, dinfo):
     
     peaks = find_peaks_including_boundries(-means)
     
-    if dinfo.debug:
+    if dinfo.live_plot:
         plt.figure()
         plt.plot(means)
         plt.plot(peaks, means[peaks], "x")
@@ -304,6 +304,7 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
 
     fs = np.array(zstack)
     f_best = np.mean(fs*mask, axis=0)
-    MKSegmentUtils.plot_frame(f_best, dinfo=dinfo.append_to_label('z_best'))
+
+    MKSegmentUtils.plot_frame(f_best, dinfo=dinfo.append_to_label('f_best'))
 
     return f_best, plane_coefficients

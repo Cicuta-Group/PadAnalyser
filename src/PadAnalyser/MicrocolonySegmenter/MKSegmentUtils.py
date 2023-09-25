@@ -37,7 +37,7 @@ Scale max pixel value up to 255, but keep lower bound the same
 def normalize_up(f):
     maximum = np.max(f)
     max_possible = np.iinfo(f.dtype).max
-    return (f.astype(np.float16)*max_possible/maximum).astype(f.dtype)
+    return (f.astype(np.float32)*max_possible/maximum).astype(f.dtype)
 
 # def normalize_up(f0):
 #     type_max = np.iinfo(f0.dtype).max

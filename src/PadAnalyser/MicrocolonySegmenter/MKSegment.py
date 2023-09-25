@@ -26,6 +26,7 @@ def flatten_stack(stack, dinfo):
     laplacian_frame = laplacian_frame.astype(np.int16)
 
     # output debug frames
+    MKSegmentUtils.plot_frame(frame_raw, dinfo=dinfo.append_to_label('z_stack_best_raw'))
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('z_stack_best'))
     MKSegmentUtils.plot_frame(laplacian_frame, dinfo=dinfo.append_to_label(f'z_stack_laplacian'))
     # for i, s in enumerate(stack):
