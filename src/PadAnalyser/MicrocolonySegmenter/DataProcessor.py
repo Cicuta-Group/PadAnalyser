@@ -118,8 +118,8 @@ def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dic
 
     # print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
 
-    time_list_of_multi_dicts = [{k:v for k, v in zip(multi_keys, values)} for values in zip(*[data.get(key, None) for key in multi_keys])]
-    time_list_of_single_dicts = [{k:v for k, v in zip(single_keys, values)} for values in zip(*[data.get(key, None) for key in single_keys])]
+    time_list_of_multi_dicts = [{k:v for k, v in zip(multi_keys, values)} for values in zip(*[data.get(key, []) for key in multi_keys])]
+    time_list_of_single_dicts = [{k:v for k, v in zip(single_keys, values)} for values in zip(*[data.get(key, []) for key in single_keys])]
     
     dfs = []
 
