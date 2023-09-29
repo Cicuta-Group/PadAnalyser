@@ -1,3 +1,4 @@
+import os
 import cv2 as cv
 import numpy as np
 from typing import Optional, List
@@ -176,7 +177,7 @@ def determine_global_tilt(center_positions, preferred_indices):
     if not points:
         raise ValueError("No preferred indices provided")
     if len(points) < 3:
-        raise ValueError("Not enough points to fit a plane, need at least 3")
+        return (0, 0, np.mean(values)) # If only one or two points, return a flat plane
 
     # Convert points and values to numpy arrays
     points = np.array(points)
@@ -221,7 +222,7 @@ def create_pixel_mask(frame_shape, plane_coefficients):
     return mask
 
 
-MIN_PROMINANE = 0.1
+MIN_PROMINANE = 0.4
 def find_peaks_including_boundries(values):
 
     peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
@@ -250,22 +251,52 @@ def compute_preferred_index(z_stack, dinfo):
     means = np.mean(z_stack, axis=(1, 2))
 
     if np.max(means) - np.min(means) < 1:
-        return None
+        return None, means, None
 
     # Step 2: Find local maxima along z
     
     peaks = find_peaks_including_boundries(-means)
     
-    if dinfo.live_plot:
-        plt.figure()
-        plt.plot(means)
-        plt.plot(peaks, means[peaks], "x")
+    # if dinfo.live_plot:
+    #     plt.figure()
+    #     plt.plot(means)
+    #     plt.plot(peaks[0], means[peaks][0], "0")
+    #     plt.plot(peaks[1:], means[peaks][1:], "x")
     
     if peaks.size:
         # Step 3: If there are multiple peaks, choose the lower z-index
-        return peaks[0]
+        return peaks[0], means, peaks
 
-    return None
+    return None, means, None
+
+
+def plot_z_scores(z_scores, z_score_means, z_score_peaks, dinfo):
+    
+    if dinfo.live_plot or dinfo.file_plot:
+        
+        x_len, y_len = len(z_scores), len(z_scores[0])
+        
+        # all_means = [item for sublist in z_score_means for item in sublist]
+        y_min = np.nanmin(z_score_means)
+        y_max = np.nanmax(z_score_means)
+
+        fig = plt.figure(figsize=(6,4), dpi=300)
+        gs = fig.add_gridspec(x_len, y_len, hspace=0, wspace=0)
+        axs = gs.subplots(sharex='col', sharey='row')
+        fig.suptitle('y-range = [{:.2f}, {:.2f}]'.format(y_min, y_max), fontsize=16)
+        for axs_row, z_score_means_row, z_score_peak_row in zip(axs, z_score_means, z_score_peaks):
+            for ax, z_score_mean, z_score_peak in zip(axs_row, z_score_means_row, z_score_peak_row):
+                ax.plot(z_score_mean)
+                if not isinstance(z_score_peak, type(None)):
+                    ax.plot(z_score_peak[0], z_score_mean[z_score_peak][0], "x")
+                    ax.plot(z_score_peak[1:], z_score_mean[z_score_peak][1:], ".")
+                ax.set_ylim(y_min, y_max)
+                ax.set_xlim(0, len(z_score_means[0]))
+                ax.set_axis_off()
+        
+        if dinfo.file_plot:
+            filepath = os.path.join(dinfo.image_dir, dinfo.label + '_z_scores.svg')
+            plt.savefig(filepath, bbox_inches='tight')
 
 
 
@@ -283,11 +314,14 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
             ] for x in range(0, ls.shape[1], region_size[0])
         ]
 
-        z_scores = [[
+        z_scores_data = [[
                 compute_preferred_index(ls[:, x:x+region_size[0], y:y+region_size[1]], dinfo=dinfo.append_to_label(f'z_{x}_{y}'))
                 for y in range(0, ls.shape[2], region_size[1])
             ] for x in range(0, ls.shape[1], region_size[0])
         ]
+
+        z_scores, z_score_means, z_score_peaks = zip(*[[list(z) for z in zip(*row)] for row in z_scores_data])
+        plot_z_scores(z_scores, z_score_means, z_score_peaks, dinfo)
 
         if dinfo.printing:
             print(np.array(z_scores))

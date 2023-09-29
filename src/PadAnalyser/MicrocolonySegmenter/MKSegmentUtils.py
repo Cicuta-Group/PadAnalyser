@@ -132,8 +132,8 @@ def mask_indices(N,k):
     return np.mask_indices(N, mask_func=dist_mask, k=k)
 
 def split_at_indices(contour, i0, i1):
-    c_a = np.concatenate((contour[:i0+1], contour[i1:]))
-    c_b = contour[i0:i1+1]
+    c_a = np.concatenate((contour[:i0], contour[i1:]))
+    c_b = contour[i0:i1]
     return c_a, c_b
 
 from scipy import spatial
@@ -411,6 +411,7 @@ def cell_distance_from_colony_border(cell_centroids, colony_contours, frame_shap
     colony_mask = np.zeros(frame_shape)
     cv.drawContours(colony_mask, contours=colony_contours, contourIdx=-1, color=1, thickness=cv.FILLED)
     colony_edt = ndimage.distance_transform_edt(colony_mask)
+    # flatten from multidimentional to 1d array for each index
     return [colony_edt[point[0], point[1]] * UM_PER_PIXEL for point in cell_centroids]
 
 def contours_in_box(contours, bound):
@@ -688,7 +689,8 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
 
             if output_frames: 
                 # output full frame
-                plot_frame(debug_frame, dinfo.append_to_label(f't{time_label.replace(":", "_")}'))
+                time_label = f'full_t{time_label.replace(":", ".")}'
+                plot_frame(debug_frame, dinfo.append_to_label(time_label).with_file_plot(True))
 
                 debug_frame_no_offset = frame_with_cs_ss_offset(
                     frame=f, 
@@ -707,7 +709,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                     
                     PADDING = 10 # px
                     x,y,w,h = cv.boundingRect(contour)
-                    plot_frame(debug_frame_no_offset[y-PADDING:y+h+PADDING, x-PADDING:x+w+PADDING], dinfo.append_to_label(f'cid{id}_{frame_label}'))
+                    plot_frame(debug_frame_no_offset[y-PADDING:y+h+PADDING, x-PADDING:x+w+PADDING], dinfo.append_to_label(f'cid{id}_{frame_label}_{time_label}'))
 
         out.release()
 
