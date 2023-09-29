@@ -131,8 +131,9 @@ def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dic
         df_multi['time_index'] = time_index
         dfs.append(df_multi)
 
+    if len(dfs) == 0: return None
+       
     df = pd.concat(dfs, ignore_index=True)
-
     return df
 
 
