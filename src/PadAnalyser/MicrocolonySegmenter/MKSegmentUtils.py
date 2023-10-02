@@ -348,6 +348,7 @@ SS_STATS_KEYS = [
     'ss_max_width',
     'ss_aspect_ratio',
     'ss_aspect_ratio_max_width',
+    'ss_distance_from_colony_edge',
 ]
 
 # Helper to convert list of list of touple of stats to dict of list of lists, where dict keys are right for export
