@@ -7,7 +7,7 @@ import collections
 from sklearn.neighbors import NearestNeighbors
 import cv2 as cv
 import logging
-import os
+import os, re
 from PIL import Image
 
 from PadAnalyser.FrameSet import FrameSet
@@ -366,7 +366,8 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, font
     ]
 
     # Output each collapsed z-stack frame so annotated images can be generated later
-    filenames = [f'frame_{label}_{i:03d}.tif' for i in range(len(frames_ts))]
+    frame_labels_filename = ['-'.join(re.findall(r'\d+', l)) for l in frame_labels] # format: start index, end index, count
+    filenames = [f'f{label}_br_i{i:03d}_t{t:04d}_m{m}.tif' for i, (t, m) in enumerate(times, frame_labels_filename)]
     for f, name in zip(frames_ts, filenames):
         im = Image.fromarray(f)
         im.save(os.path.join(dinfo.image_dir, name))

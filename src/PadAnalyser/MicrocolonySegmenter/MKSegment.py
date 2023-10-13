@@ -57,11 +57,13 @@ def label_contour_in_mask(mask, dinfo):
 
     # Apply distance transform
     distance_transform = ndimage.distance_transform_edt(mask)
+    MKSegmentUtils.plot_frame(distance_transform, dinfo=dinfo.append_to_label('3.1_dt_raw'))
     
     # Apply smoothing on the distance map
     distance_transform = gaussian(distance_transform, sigma=0.5)  # Adjust the sigma value as necessary
+    MKSegmentUtils.plot_frame(distance_transform, dinfo=dinfo.append_to_label('3.2_dt_filtered'))
 
-    h_maxima = [extrema.h_maxima(distance_transform, i).astype(bool) for i in range(1, 6)]
+    h_maxima = [extrema.h_maxima(distance_transform, i).astype(bool) for i in [1]]
 
     # Label each separate region in the binary image
     labeled_regions, num_features = ndimage.label(mask)
@@ -88,7 +90,7 @@ def label_contour_in_mask(mask, dinfo):
         area = np.sum(region)
         radius = np.max(distance_transform_region)
         
-        if radius < 1.8: # or area < 12:
+        if radius < 1: # or area < 12:
             continue
         
         radii.append(radius)
@@ -107,15 +109,20 @@ def label_contour_in_mask(mask, dinfo):
     # plt.hist(areas, bins=40)
     # plt.title(f'Areas {dinfo.label}')
 
+    # convolution to make diagonal pixels make up a continous region
+    kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
+    final_maxima = convolve(final_maxima>0, kernel) > 0
+
     markers = ndimage.label(final_maxima)[0]
-    MKSegmentUtils.plot_frame(markers, dinfo=dinfo.append_to_label('2_markers'))
+    MKSegmentUtils.plot_frame((mask>0).astype(np.uint8)*100 + (markers>0).astype(np.uint8)*155, dinfo=dinfo.append_to_label('3.3_markers'))
 
     # Apply watershed transformation using the distance map
     labels_ws = watershed(-distance_transform, markers, mask=mask)
-    MKSegmentUtils.plot_frame(labels_ws, dinfo=dinfo.append_to_label('3_labels_ws'))
+    
+    MKSegmentUtils.plot_frame(labels_ws, dinfo=dinfo.append_to_label('3.4_labels_ws'))
 
     labeled_cells = measure.label(labels_ws)
-    MKSegmentUtils.plot_frame(labeled_cells, dinfo=dinfo.append_to_label('3_labelled'))
+    MKSegmentUtils.plot_frame(labeled_cells, dinfo=dinfo.append_to_label('3.5_labelled'))
 
     ### Compute contours - move away from this? 
     # Get unique labels
@@ -156,10 +163,12 @@ def bf_single_cell_segment(f, colony_contours, dinfo):
 
     ### Include intensity from BF to get rid of cell outlines -> m1
     m1 = f
+    m1 = MKSegmentUtils.norm(f)
     m1 = cv.GaussianBlur(m1, (3, 3), 0)
-    # for o in [-3,-4,-5,-6,-8,-10,-12,-14]:
-    #     m10 = cv.adaptiveThreshold(m0, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 41, o)
-    #     MKSegmentUtils.plot_frame(m10, dinfo=dinfo.append_to_label(f'3_m1_{o}'))
+    # for o in [-3,-4,-5,-6,-8]:
+    # for a in [11, 15, 21, 41, 61, 81]:
+    #     m10 = cv.adaptiveThreshold(m1, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, a, -4)
+    #     MKSegmentUtils.plot_frame(m10, dinfo=dinfo.append_to_label(f'3_m1_{a}'))
 
     m1 = cv.adaptiveThreshold(m1, 1, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 81, -4) # -4, relativley low, to make better at segmenting big cells such as Mecilinam-exposed ecoli
     MKSegmentUtils.plot_frame(m1*255, dinfo=dinfo.append_to_label('3_m1'))
@@ -168,9 +177,9 @@ def bf_single_cell_segment(f, colony_contours, dinfo):
     m1 = m1 * colony_mask
 
     # remove background lonely pixels 
-    kernel = np.ones((5, 5))
-    isolated_pixels = convolve(m1, kernel) < 10
-    m1 = m1 & ~isolated_pixels
+    # kernel = np.ones((5, 5))
+    # isolated_pixels = convolve(m1, kernel) < 5
+    # m1 = m1 & ~isolated_pixels
 
     MKSegmentUtils.plot_frame(m1*255, dinfo=dinfo.append_to_label('3_m2'))
 
@@ -224,21 +233,23 @@ def bf_colony_segment(l, dinfo):
     m2 = m0
     m2 = scipy.signal.convolve2d(m2, MKSegmentUtils.k9_circle, mode='same') > np.sum(MKSegmentUtils.k9_circle)*1/2
     m2 = np.logical_or(m2, m0)
-    MKSegmentUtils.plot_frame(m2, dinfo=dinfo.append_to_label('4_m2'))
+    m2 = scipy.signal.convolve2d(m2, MKSegmentUtils.k9_circle, mode='same') > np.sum(MKSegmentUtils.k9_circle)*1/2
+    m2 = np.logical_or(m2, m0)
+    MKSegmentUtils.plot_frame(m2, dinfo=dinfo.append_to_label('3_m2'))
 
     # ### Filter any elements smaller than n blocks -> m1
     m1 = m2
-    m1 = scipy.signal.convolve2d(m1, MKSegmentUtils.kL1, mode='same') > np.sum(MKSegmentUtils.kL1)//2
-    m1 = np.logical_and(m1, m2)
-    MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('3_m1'))
+    # m1 = scipy.signal.convolve2d(m1, MKSegmentUtils.kL1, mode='same') > np.sum(MKSegmentUtils.kL1)//2
+    # m1 = np.logical_and(m1, m2)
+    # MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('4_m1'))
     
     ### Fill holes -> mu
     mu = m1
-    mu = cv.morphologyEx(mu.astype(np.uint8), cv.MORPH_CLOSE, MKSegmentUtils.kL2.astype(np.uint8)) # fill last remaining holes
-    MKSegmentUtils.plot_frame(mu.astype(bool), dinfo=dinfo.append_to_label('5_mu'))
-    mu = cv.morphologyEx(mu.astype(np.uint8), cv.MORPH_OPEN, MKSegmentUtils.kL2.astype(np.uint8)) # harsh debris removal
-    MKSegmentUtils.plot_frame(mu.astype(bool), dinfo=dinfo.append_to_label('6_mu'))
-    mu = cv.GaussianBlur(mu, (41, 41), 0)
+    # mu = cv.morphologyEx(mu.astype(np.uint8), cv.MORPH_CLOSE, MKSegmentUtils.kL2.astype(np.uint8)) # fill last remaining holes
+    # MKSegmentUtils.plot_frame(mu.astype(bool), dinfo=dinfo.append_to_label('5_mu'))
+    # mu = cv.morphologyEx(mu.astype(np.uint8), cv.MORPH_OPEN, MKSegmentUtils.kL2.astype(np.uint8)) # harsh debris removal
+    # MKSegmentUtils.plot_frame(mu.astype(bool), dinfo=dinfo.append_to_label('6_mu'))
+    mu = cv.GaussianBlur(mu.astype(np.uint8), (41, 41), 0)
     # mu = cv.morphologyEx(mu.astype(np.uint8), cv.MORPH_DILATE, k5_circle.astype(np.uint8)) # make mask a bit bigger
     MKSegmentUtils.plot_frame(mu.astype(bool), dinfo=dinfo.append_to_label('7_mu'))
 

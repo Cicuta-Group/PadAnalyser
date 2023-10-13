@@ -3,7 +3,7 @@ import cv2 as cv
 import numpy as np
 from typing import Optional, List
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks 
 
 from . import MKSegmentUtils
 
@@ -222,7 +222,8 @@ def create_pixel_mask(frame_shape, plane_coefficients):
     return mask
 
 
-MIN_PROMINANE = 0.4
+MIN_PROMINANE = 0.2
+
 def find_peaks_including_boundries(values):
 
     peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
@@ -250,7 +251,7 @@ def compute_preferred_index(z_stack, dinfo):
 
     means = np.mean(z_stack, axis=(1, 2))
 
-    if np.max(means) - np.min(means) < 1:
+    if np.max(means) - np.min(means) < MIN_PROMINANE:
         return None, means, None
 
     # Step 2: Find local maxima along z
@@ -302,6 +303,10 @@ def plot_z_scores(z_scores, z_score_means, z_score_peaks, dinfo):
 
 def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
 
+    if dinfo.printing:
+        if zstack[0].dtype != np.uint16:
+            print('Warning: zstack is not uint16')
+         
     if plane_coefficients == None:
         ls = np.array([laplacian(f) for f in zstack])
 
