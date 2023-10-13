@@ -16,8 +16,8 @@ def flatten_stack(stack, dinfo):
     elif len(stack) == 1: frame_raw = stack[0]
     else: frame_raw, plane_coefficients = ZStack.project_to_plane(stack, dinfo=dinfo) # compute laplacian from normalized frame
 
-    frame_raw = MKSegmentUtils.normalize_up(frame_raw.astype(np.uint16))
-    frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
+    frame = MKSegmentUtils.norm(frame_raw)
+    # frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
 
     # compute laplacian compressed stack
     laplacian_frame = cv.GaussianBlur(frame_raw, (7, 7), 0) # blur, kernel size about feature size

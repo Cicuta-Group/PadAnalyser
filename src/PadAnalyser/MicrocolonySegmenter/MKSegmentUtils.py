@@ -26,10 +26,19 @@ MIN_POINT_SEPARATION = 4 # in um
 Normalize frame between 0 and 255
 '''
 def norm(f):
-    if f.dtype == np.bool8:
-        f = np.uint8(f)
-    return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
+    dtype = f.dtype
+    
+    if dtype == np.bool8:
+        return np.uint8(f)*255
+    if dtype == np.uint16:
+        f = cv.normalize(f, None, alpha=0, beta=65535, norm_type=cv.NORM_MINMAX)
+        return (f / 256).astype(np.uint8)
+    if dtype == np.uint8:
+        return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
+    
+    return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX).astype(np.uint8)
 
+    raise TypeError(f'norm() does not know how to handle data of type {dtype}')
 
 '''
 Scale max pixel value up to 255, but keep lower bound the same
@@ -691,7 +700,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
             if output_frames: 
                 # output full frame
                 time_label = f'full_t{time_label.replace(":", ".")}'
-                plot_frame(debug_frame, dinfo.append_to_label(time_label).with_file_plot(True))
+                plot_frame(debug_frame, dinfo.append_to_label(time_label))
 
                 debug_frame_no_offset = frame_with_cs_ss_offset(
                     frame=f, 
