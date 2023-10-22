@@ -16,23 +16,25 @@ def flatten_stack(stack, dinfo):
     elif len(stack) == 1: frame_raw = stack[0]
     else: frame_raw, plane_coefficients = ZStack.project_to_plane(stack, dinfo=dinfo) # compute laplacian from normalized frame
 
-    frame = MKSegmentUtils.norm(frame_raw)
+    if frame_raw.dtype == np.uint8: frame_raw = frame_raw.astype(np.uint16)
+    frame16 = MKSegmentUtils.normanlize_uint16(frame_raw)
+    frame8 = MKSegmentUtils.norm(frame_raw)
     # frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
 
     # compute laplacian compressed stack
-    laplacian_frame = cv.GaussianBlur(frame_raw, (7, 7), 0) # blur, kernel size about feature size
+    laplacian_frame = cv.GaussianBlur(frame16, (7, 7), 0) # blur, kernel size about feature size
     laplacian_frame = cv.Laplacian(laplacian_frame, cv.CV_32S, ksize=7) # laplacian
     laplacian_frame = laplacian_frame//2**16 # scale to fit in int16
     laplacian_frame = laplacian_frame.astype(np.int16)
-
+    
     # output debug frames
-    MKSegmentUtils.plot_frame(frame_raw, dinfo=dinfo.append_to_label('z_stack_best_raw'))
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('z_stack_best'))
+    MKSegmentUtils.plot_frame(frame16, dinfo=dinfo.append_to_label('z_stack_frame16'))
+    MKSegmentUtils.plot_frame(frame8, dinfo=dinfo.append_to_label('z_stack_frame8'))
     MKSegmentUtils.plot_frame(laplacian_frame, dinfo=dinfo.append_to_label(f'z_stack_laplacian'))
     # for i, s in enumerate(stack):
     #     MKSegmentUtils.plot_frame(s, dinfo=dinfo.append_to_label(f'z_stack_frame_{i}'))
 
-    return frame, laplacian_frame, plane_coefficients
+    return frame8, laplacian_frame, plane_coefficients
 
 
 from skimage import measure #, morphology, filters
@@ -57,13 +59,14 @@ def label_contour_in_mask(mask, dinfo):
 
     # Apply distance transform
     distance_transform = ndimage.distance_transform_edt(mask)
+    MKSegmentUtils.plot_frame(distance_transform>2, dinfo=dinfo.append_to_label('3.0_dt_g'))
     MKSegmentUtils.plot_frame(distance_transform, dinfo=dinfo.append_to_label('3.1_dt_raw'))
     
     # Apply smoothing on the distance map
     distance_transform = gaussian(distance_transform, sigma=0.5)  # Adjust the sigma value as necessary
     MKSegmentUtils.plot_frame(distance_transform, dinfo=dinfo.append_to_label('3.2_dt_filtered'))
 
-    h_maxima = [extrema.h_maxima(distance_transform, i).astype(bool) for i in [1]]
+    h_maxima = [extrema.h_maxima(distance_transform, i).astype(bool) for i in [1,2,3,4]]
 
     # Label each separate region in the binary image
     labeled_regions, num_features = ndimage.label(mask)
@@ -163,14 +166,14 @@ def bf_single_cell_segment(f, colony_contours, dinfo):
 
     ### Include intensity from BF to get rid of cell outlines -> m1
     m1 = f
-    m1 = MKSegmentUtils.norm(f)
+    # m1 = MKSegmentUtils.norm(f) # allready done
     m1 = cv.GaussianBlur(m1, (3, 3), 0)
     # for o in [-3,-4,-5,-6,-8]:
     # for a in [11, 15, 21, 41, 61, 81]:
     #     m10 = cv.adaptiveThreshold(m1, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, a, -4)
     #     MKSegmentUtils.plot_frame(m10, dinfo=dinfo.append_to_label(f'3_m1_{a}'))
 
-    m1 = cv.adaptiveThreshold(m1, 1, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 81, -4) # -4, relativley low, to make better at segmenting big cells such as Mecilinam-exposed ecoli
+    m1 = cv.adaptiveThreshold(m1, 1, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 51, -4) # -4, relativley low, to make better at segmenting big cells such as Mecilinam-exposed ecoli
     MKSegmentUtils.plot_frame(m1*255, dinfo=dinfo.append_to_label('3_m1'))
 
     # remove background based on colony locations
@@ -225,7 +228,8 @@ def bf_colony_segment(l, dinfo):
     #         M00 =  np.logical_or(s > M0, M0 > t)
     #         MKSegmentUtils.plot_frame(M00, title=f'{label}_col_2_M00_{s}_{t}', plot=plot, dir=debug_dir, crop=crop)
 
-    m0 =  np.logical_or(-5 >= m0, m0 >= 5)
+    m0 =  np.abs(m0) > 8
+
     # m0 =  m0 < -8
     MKSegmentUtils.plot_frame(m0, dinfo=dinfo.append_to_label('2_m0'))
 

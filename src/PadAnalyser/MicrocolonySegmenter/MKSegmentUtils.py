@@ -25,20 +25,24 @@ MIN_POINT_SEPARATION = 4 # in um
 '''
 Normalize frame between 0 and 255
 '''
-def norm(f):
-    dtype = f.dtype
-    
-    if dtype == np.bool8:
-        return np.uint8(f)*255
-    if dtype == np.uint16:
-        f = cv.normalize(f, None, alpha=0, beta=65535, norm_type=cv.NORM_MINMAX)
-        return (f / 256).astype(np.uint8)
-    if dtype == np.uint8:
-        return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
-    
-    return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX).astype(np.uint8)
+def normanlize_uint16(f):
+    if f.dtype == np.bool8:
+        f = np.uint8(f)
+    return cv.normalize(f, None, alpha=0, beta=65535, norm_type=cv.NORM_MINMAX).astype(np.uint16)
 
-    raise TypeError(f'norm() does not know how to handle data of type {dtype}')
+def norm(f):
+    if f.dtype == np.bool8:
+        f = np.uint8(f)
+    return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX).astype(np.uint8)
+    
+    # if dtype == np.uint16:
+    #     f = cv.normalize(f, None, alpha=0, beta=65535, norm_type=cv.NORM_MINMAX)
+    #     return (f / 256).astype(np.uint8)
+    # if dtype == np.uint8:
+    #     return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
+    
+
+    # raise TypeError(f'norm() does not know how to handle data of type {dtype}')
 
 '''
 Scale max pixel value up to 255, but keep lower bound the same
@@ -62,6 +66,15 @@ def to_dtype_uint8(f):
     if f.dtype == np.uint8: return f
     if f.dtype == np.uint16: return (f//2**8).astype(np.uint8)
     if f.dtype == np.uint32: return (f//2**24).astype(np.uint8)
+    if f.dtype == np.uint64: return (f//2**56).astype(np.uint8)
+    if f.dtype == np.int8: return ((f//2)+2**7).astype(np.uint8)
+    if f.dtype == np.int16: return (((f//2)+2**15)//2**8).astype(np.uint8)
+    if f.dtype == np.int32: return (((f//2)+2**31)//2**24).astype(np.uint8)
+    if f.dtype == np.int64: return (((f//2)+2**63)//2**56).astype(np.uint8)
+    if f.dtype == bool: return (f.astype(np.uint8)*255).astype(np.uint8)
+    if f.dtype == np.float16: return norm(f)
+    if f.dtype == np.float32: return norm(f)
+    if f.dtype == np.float64: return norm(f)
     raise TypeError(f'to_dtype_uint8() does not know how to handle data of type {f.dtype}')
 
 # '''
@@ -569,8 +582,7 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
     if not dinfo.live_plot and not dinfo.file_plot: # for performance
         return 
     
-    if f.dtype != np.uint8:
-        f = np.uint8(norm(f))
+    f = to_dtype_uint8(f)
 
     if contours:
         f = np.stack((f,)*3, axis=-1)
@@ -597,7 +609,7 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
         plt.tight_layout()
 
     if dinfo.file_plot:
-        im = Image.fromarray(np.uint8(f))
+        im = Image.fromarray(f)
         im.save(os.path.join(dinfo.image_dir, dinfo.label + '.tif'))
     
 
