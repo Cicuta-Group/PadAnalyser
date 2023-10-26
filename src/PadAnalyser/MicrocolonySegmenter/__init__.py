@@ -87,18 +87,12 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> Tuple
     
     label = frame_set.label
     
-    # Logging dir setup
-    loggin_dir = os.path.dirname(output_config.logging_file)
-    MKUtils.generate_directory(loggin_dir)
-    MKUtils.configure_logger(filepath=output_config.logging_file, label=f'subprocess', file_mode='a', stream_level='WARN') # reconfigure in each multiprocessing pool
-        
     data = segment_frame_set_to_dict(
         frame_set=frame_set, 
         output_config=output_config, 
     )
     
     # convert to dataframe and add growth rate etc.
-    logging.info(f'Making dataframe for {label}')
     df = DataProcessor.dataframe_from_data_series(
         data=data,
         label=label,
@@ -109,7 +103,6 @@ def segment_frame_set(frame_set: FrameSet, output_config: OutputConfig) -> Tuple
         label=label,
         metadata=frame_set.metadata
     )
-    logging.info(f'Finished making dataframe for {label}')
 
     return df, ss_df
     

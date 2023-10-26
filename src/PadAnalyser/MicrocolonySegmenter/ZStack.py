@@ -71,7 +71,6 @@ import skimage.measure
 
 
 
-
 def laplacian(frame_raw):
     # compute laplacian compressed stack
     KERNEL_SIZE = 9
@@ -82,9 +81,10 @@ def laplacian(frame_raw):
 
     return laplacian_frame
 
-
-
-# Contounous projection based on low pass filter of laplacian areas. 
+'''
+Contounous projection based on low pass filter of laplacian areas. 
+Simplest approach, and used for initial datasets. 
+'''
 def z_stack_projection_laplace(stack, dinfo):
     fs = stack
 
@@ -114,40 +114,44 @@ def z_stack_projection_laplace(stack, dinfo):
     return f_focus
 
 
-# Contounous projection based on low pass filter of laplacian areas. 
-def z_stack_projection_sobel(stack, dinfo):
-    fs = stack
+# # Contounous projection based on low pass filter of laplacian areas. 
+# def z_stack_projection_sobel(stack, dinfo):
+#     fs = stack
 
-    # Apply Gaussian blur
-    fs_float = [cv.GaussianBlur(f, (5, 5), 0).astype(np.float32) for f in fs]
+#     # Apply Gaussian blur
+#     fs_float = [cv.GaussianBlur(f, (5, 5), 0).astype(np.float32) for f in fs]
 
-    # Compute gradients using Sobel
-    gradients = [cv.Sobel(f, cv.CV_32F, 1, 1, ksize=3) for f in fs_float]
-    fs = gradients # [np.sqrt(np.square(grad[:,:,0]) + np.square(grad[:,:,1])) for grad in gradients]
+#     # Compute gradients using Sobel
+#     gradients = [cv.Sobel(f, cv.CV_32F, 1, 1, ksize=3) for f in fs_float]
+#     fs = gradients # [np.sqrt(np.square(grad[:,:,0]) + np.square(grad[:,:,1])) for grad in gradients]
     
-    # Only keep positive gradients
-    fs = [np.maximum(f, 0) for f in fs]
+#     # Only keep positive gradients
+#     fs = [np.maximum(f, 0) for f in fs]
     
-    # Compute focus score for each pixel by downsampling
-    KERNEL_SIZE = 101
-    fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
+#     # Compute focus score for each pixel by downsampling
+#     KERNEL_SIZE = 101
+#     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
 
-    # Find index with highest score in stack for each pixel
-    f_max = np.argmax(np.array(fs), 0)
-    f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+#     # Find index with highest score in stack for each pixel
+#     f_max = np.argmax(np.array(fs), 0)
+#     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
     
-    # Check histogram and invert if needed
-    # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
-    # peak = bins[np.argmax(hist)]
-    # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
-    #     f_focus = 255 - f_focus
+#     # Check histogram and invert if needed
+#     # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+#     # peak = bins[np.argmax(hist)]
+#     # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+#     #     f_focus = 255 - f_focus
     
-    MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
-    MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best_'))
+#     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
+#     MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best_'))
 
-    return f_focus
+#     return f_focus
 
 
+
+
+
+### New approach  - fit plane
 
 # 1. Split frame into regions.
 # 2. For each region, compute preffered index. If no preferred index, return none.
@@ -347,3 +351,40 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
     MKSegmentUtils.plot_frame(f_best, dinfo=dinfo.append_to_label('f_best'))
 
     return f_best, plane_coefficients
+
+
+
+
+'''
+Master method that takes a stack of frames and returns a single in-focus frame.
+Tries to find best-fit plane, and if it fails, falls back to laplacian projection.
+'''
+def flatten_stack(stack, dinfo):
+
+    plane_coefficients = None
+    
+    # Check if stack is already flattened, otherwise compute projection
+    if isinstance(stack, np.ndarray): frame_raw = stack
+    elif len(stack) == 1: frame_raw = stack[0]
+    else: frame_raw, plane_coefficients = project_to_plane(stack, dinfo=dinfo) # compute laplacian from normalized frame
+
+    if frame_raw.dtype == np.uint8: frame_raw = frame_raw.astype(np.uint16)
+    # frame16 = MKSegmentUtils.normanlize_uint16(frame_raw)
+    frame8 = MKSegmentUtils.norm(frame_raw)
+    # frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
+
+    # # compute laplacian compressed stack
+    # laplacian_frame = cv.GaussianBlur(frame16, (7, 7), 0) # blur, kernel size about feature size
+    # laplacian_frame = cv.Laplacian(laplacian_frame, cv.CV_32S, ksize=7) # laplacian
+    # laplacian_frame = laplacian_frame//2**16 # scale to fit in int16
+    # laplacian_frame = laplacian_frame.astype(np.int16)
+    
+    # output debug frames
+    # MKSegmentUtils.plot_frame(frame16, dinfo=dinfo.append_to_label('z_stack_frame16'))
+    MKSegmentUtils.plot_frame(frame8, dinfo=dinfo.append_to_label('z_stack_frame8'))
+    # MKSegmentUtils.plot_frame(laplacian_frame, dinfo=dinfo.append_to_label(f'z_stack_laplacian'))
+    # for i, s in enumerate(stack):
+    #     MKSegmentUtils.plot_frame(s, dinfo=dinfo.append_to_label(f'z_stack_frame_{i}'))
+
+    return frame8, plane_coefficients
+

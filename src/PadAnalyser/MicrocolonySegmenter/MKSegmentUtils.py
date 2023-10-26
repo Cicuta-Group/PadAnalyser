@@ -328,12 +328,6 @@ def mask_from_contour(c, padding):
 
 
 
-# Dilate contour by converting to mask, dilating and converting back to contour
-def dilate_contour(c):
-    mask, c_min = mask_from_contour(c, padding=5)
-    mask = cv.dilate(mask, kernel=k5_circle, iterations=1)
-    ca, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    return ca[0]+c_min
 
 # Compute all properties at once to avoid re-computing values
 def ss_stats_from_contour(contour):
