@@ -113,8 +113,8 @@ def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.Dat
 
 def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.DataFrame:
     
-    multi_keys = ['ss_area', 'ss_aspect_ratio', 'ss_aspect_ratio_max_width', 'ss_centroid', 'ss_dist_sums', 'ss_length', 'ss_max_width', 'ss_width']
-    single_keys = ['time', 'ss_count']
+    multi_keys = ['ss_area', 'ss_aspect_ratio', 'ss_aspect_ratio_max_width', 'ss_distance_from_colony_edge', 'ss_centroid', 'ss_dist_sums', 'ss_length', 'ss_max_width', 'ss_width']
+    single_keys = ['time', 'ss_count', ]
 
     # print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
 
