@@ -604,7 +604,7 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
 
     if dinfo.file_plot:
         im = Image.fromarray(f)
-        im.save(os.path.join(dinfo.image_dir, dinfo.label + '.tif'))
+        im.save(os.path.join(dinfo.image_dir, dinfo.label + '.png'))
     
 
 def frame_with_cs_ss_offset(frame, cs_contours, cs_ids, ss_contours, ss_ids, offset, cs_on_border, ss_stroke=1):

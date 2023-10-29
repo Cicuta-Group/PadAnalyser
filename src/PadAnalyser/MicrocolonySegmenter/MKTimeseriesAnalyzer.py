@@ -365,13 +365,6 @@ def analyze_time_seriess(frame_set: FrameSet, mask_folder: str, label: str, font
         for ss_centroids , colony_contours in zip(ss_centroids_ts, cs_contours_ts)
     ]
 
-    # Output each collapsed z-stack frame so annotated images can be generated later
-    frame_labels_filename = ['-'.join(re.findall(r'\d+', l)) for l in frame_labels] # format: start index, end index, count
-    filenames = [f'f{label}_br_i{i:03d}_t{t:04d}_m{m}.tif' for i, (t, m) in enumerate(times, frame_labels_filename)]
-    for f, name in zip(frames_ts, filenames):
-        im = Image.fromarray(f)
-        im.save(os.path.join(dinfo.image_dir, name))
-
     return {
         'time': times,
 

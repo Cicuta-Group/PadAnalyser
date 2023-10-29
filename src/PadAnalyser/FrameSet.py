@@ -120,6 +120,38 @@ class TiffFrameSet(FrameSet):
         return f'TiffFrameSet(frame=[{self.filenames[0]}, ...], times=[{self.times[0]}, ...])'
 
 
+class PngFrameSet(FrameSet):
+
+    def __init__(self, file_paths: List[str], times_in_seconds: List[int], frame_labels: List[str], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
+        if len(file_paths) != len(times_in_seconds):
+            raise Exception(f"Number of files {len(file_paths)} different from number of times {len(times_in_seconds)}")
+        
+        self.filenames = file_paths
+        self.times = times_in_seconds
+        self.frame_labels = frame_labels if frame_labels else [str(i) for i in range(len(file_paths))]
+        super().__init__(**kwargs)
+
+
+    def get_frame(self, index: int) -> Frame: # returns frame 
+        filename = self.filenames[index]
+        return np.array(Image.open(filename))
+
+    def get_time(self, index: int) -> int: # returns list of timestamps in seconds
+        return self.times[index]
+
+    def get_frame_label(self, index: int) -> str:
+        return self.frame_labels[index]
+
+    def get_frame_count(self) -> int:
+        return len(self.times)
+
+    def __str__(self) -> str:
+        return f'PngFrameSet with {len(self.times)} frames'
+
+    def __repr__(self) -> str:
+        return f'PngFrameSet(frame=[{self.filenames[0]}, ...], times=[{self.times[0]}, ...])'
+
+
 
 # class MovieFrameSet(FrameSet):
 #     def __init__(self, filename: str, index_set: List[int]): # index_set is a list of frame indices to use
