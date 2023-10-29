@@ -9,19 +9,31 @@ from scipy import ndimage
 # from scipy.ndimage import gaussian_laplace
 from skimage.morphology import extrema
 from scipy.ndimage import convolve
+import numpy as np
 import cv2 as cv
+
+from PadAnalyser.MicrocolonySegmenter import MKSegmentUtils
 
 
 # Dilate contour by converting to mask, dilating and converting back to contour
 def dilate_contour(c):
-    mask, c_min = mask_from_contour(c, padding=5)
-    mask = cv.dilate(mask, kernel=k5_circle, iterations=1)
+    mask, c_min = MKSegmentUtils.mask_from_contour(c, padding=5)
+    mask = cv.dilate(mask, kernel=MKSegmentUtils.k5_circle, iterations=1)
     ca, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return ca[0]+c_min
     
 
 
 
+def laplacian_uint8(f):
+
+    assert f.dtype == np.uint8
+
+    laplacian_frame = cv.GaussianBlur(f, (7, 7), 0) # blur, kernel size about feature size
+    laplacian_frame = cv.Laplacian(laplacian_frame, cv.CV_16S, ksize=7) # laplacian
+    laplacian_frame = laplacian_frame.astype(np.int16)
+    
+    return laplacian_frame
 
 
 

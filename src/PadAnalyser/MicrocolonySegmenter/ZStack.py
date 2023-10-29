@@ -391,4 +391,3 @@ def flatten_stack(stack, dinfo):
     #     MKSegmentUtils.plot_frame(s, dinfo=dinfo.append_to_label(f'z_stack_frame_{i}'))
 
     return frame8, plane_coefficients
-

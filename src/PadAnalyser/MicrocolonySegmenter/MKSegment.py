@@ -1,4 +1,4 @@
-from . import MKSegmentUtils, DInfo, ZStack
+from . import MKSegmentUtils, DInfo, ZStack, CellSegmentMods
 import numpy as np
 import cv2 as cv
 import logging
@@ -40,7 +40,7 @@ def bf_single_cell_segment(f, colony_contours, dinfo):
     MKSegmentUtils.plot_frame(m1*255, dinfo=dinfo.append_to_label('3_m2'))
 
     ## Detect contours -> contours
-    contours = label_contour_in_mask(m1, dinfo=dinfo.append_to_label('4_lbl'))
+    contours = CellSegmentMods.label_contour_in_mask(m1, dinfo=dinfo.append_to_label('4_lbl'))
     MKSegmentUtils.plot_frame(f, dinfo=dinfo.append_to_label('07_contours_all'), contours=contours, contour_thickness=cv.FILLED)
 
     contours = [MKSegmentUtils.dilate_contour(c) for c in contours]

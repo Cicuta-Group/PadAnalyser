@@ -1,11 +1,15 @@
 
+from . import MKSegmentUtils, DInfo, CellSegmentMods
+import numpy as np
+import cv2 as cv
+import scipy.signal
 
-from . import MKSegmentUtils, DInfo
 
 
+def bf_colony_segment(f, dinfo: DInfo):
+    
+    l = CellSegmentMods.laplacian_uint8(f)
 
-def bf_colony_segment(l, dinfo: DInfo):
-        
     ### Colony outline from laplacian -> m0
     m0 = l
     # for t in [1,2,3,4,5,10]:
