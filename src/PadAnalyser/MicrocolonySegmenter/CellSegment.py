@@ -137,7 +137,7 @@ def bf_laplacian(frame, colony_contours, dinfo: DInfo):
     contours = [c for c in contours if cv.contourArea(c) > MIN_AREA_PIXELS]
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('06_contours_filtered_area'), contours=contours, contour_thickness=2)
 
-    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, debug=False)]
+    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, debug=False, printing=False)]
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('10_contours_split_curvature'), contours=contours, contour_thickness=cv.FILLED)
 
     contours = [CellSegmentMods.dilate_contour(c) for c in contours]

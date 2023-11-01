@@ -562,7 +562,7 @@ def closest_point_on_other_side_of_contour(point_index: int, contour: np.ndarray
     return i0, i1
 
 
-def split_contour_by_curvature(contour: np.ndarray, debug: bool=False) -> list[np.ndarray]:
+def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=False) -> list[np.ndarray]:
     
     if len(contour) < 2*MIN_POINT_INDEX_DISTANCE: return [contour]
 
@@ -620,9 +620,10 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False) -> list[n
             pb = contour[i1][0]
             ax1.plot([pa[0], pb[0]], [pa[1], pb[1]], 'go', markersize=4, label='Closest')  # Adjust 0.5 threshold as needed
         
-        closest_distance = distances[closest_index]
-        index_separation = index_separation_in_array(i0, i1, len(contour))
-        print('Distance split', len(ca), len(cb), closest_distance, index_separation, i0, i1, len(contour))
+        if printing:
+            closest_distance = distances[closest_index]
+            index_separation = index_separation_in_array(i0, i1, len(contour))
+            print('Distance split', len(ca), len(cb), closest_distance, index_separation, i0, i1, len(contour))
         return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
 
 
@@ -664,7 +665,7 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False) -> list[n
         
         ax1.plot([pa[0], pb[0]], [pa[1], pb[1]], 'go', markersize=4, label='Closest')  # Adjust 0.5 threshold as needed
     
-    print('Curvature split', len(ca), len(cb), closest_distance, index_separation, pai, pbi, len(contour))
+    if printing: print('Curvature split', len(ca), len(cb), closest_distance, index_separation, pai, pbi, len(contour))
     return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
 
 
