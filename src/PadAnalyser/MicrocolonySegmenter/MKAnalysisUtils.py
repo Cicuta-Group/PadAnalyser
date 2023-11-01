@@ -27,36 +27,6 @@ def i0_and_z_count(m, check_steps=30):
     return i0, z_count
 
 
-### File manipulation based on my file conventions
-
-def find_movie_filepath(experiment, directory):
-    movie_folder = os.path.join(directory, experiment)
-    if os.path.isdir(movie_folder):
-        # look in experiment folder
-        movie_files = [f for f in os.listdir(movie_folder) if '.movie' in f]
-        if not movie_files: raise Exception(f'Could not find movie-file in {movie_folder}')
-        if not len(movie_files) == 1: raise Exception(f'Found multiple movie-files in {movie_folder}')
-        movie_file = movie_files[-1]
-        return os.path.join(movie_folder, movie_file)
-    else:
-        # try to look for file in parent directory
-        movie_files = [f for f in os.listdir(directory) if '.movie' in f]
-        movie_file = [f for f in movie_files if experiment in f]
-        if not movie_file: raise Exception(f'Could not find movie-file in {directory}')
-        if not len(movie_file) == 1: raise Exception(f'Found multiple movie-files in {directory}')
-        return os.path.join(directory, movie_file[-1])
-
-def load_points_from_experiment(experiment, directory):
-    point_file_name = f'{experiment}.csv'
-    if not point_file_name in os.listdir(directory): raise Exception(f'Could not find point file {os.path.join(directory, point_file_name)}')
-
-    point_file_path = os.path.join(directory, point_file_name)
-
-    return pd.read_csv(point_file_path, names=['x', 'y', 'z', 'o', 'pad_name'])
-
-
-
-
 class NumpyArrayEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
