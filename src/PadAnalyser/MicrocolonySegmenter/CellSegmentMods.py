@@ -15,15 +15,21 @@ import cv2 as cv
 from PadAnalyser.MicrocolonySegmenter import MKSegmentUtils
 
 
+kc5 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(5,5)).astype(np.uint8)
+
+
 # Dilate contour by converting to mask, dilating and converting back to contour
 def dilate_contour(c):
     mask, c_min = MKSegmentUtils.mask_from_contour(c, padding=5)
     mask = cv.dilate(mask, kernel=MKSegmentUtils.k5_circle, iterations=1)
-    ca, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    ca, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     return ca[0]+c_min
     
 
-
+def filter_to_colonies(m1, colony_contours):
+    colony_mask = np.zeros_like(m1, dtype=np.uint8)
+    cv.drawContours(colony_mask, colony_contours, -1, 1, cv.FILLED)
+    return m1 * colony_mask
 
 def laplacian_uint8(f):
 
@@ -35,6 +41,10 @@ def laplacian_uint8(f):
     
     return laplacian_frame
 
+
+def laplacian_of_gaussian(image, sigma, ksize):
+    blurred = cv.GaussianBlur(image, (0, 0), sigma)
+    return cv.Laplacian(blurred, ddepth=cv.CV_64F, ksize=ksize)
 
 
 def label_contour_in_mask(mask, dinfo):
@@ -141,3 +151,23 @@ def label_contour_in_mask(mask, dinfo):
     # MKSegmentUtils.plot_frame(labeled_cells, dinfo=dinfo.append_to_label('07_contour_radius'), contours=contours, contour_thickness=cv.FILLED, contour_labels=contour_labels)
 
     return all_contours
+
+
+
+def robust_edge_detection(gray_image, lower_threshold=50, upper_threshold=150):
+    
+    # Apply Gaussian blur
+    blurred_image = gray_image # cv2.GaussianBlur(gray_image, (3, 3), 0)
+    
+    # Apply the Canny edge detector
+    edges = cv.Canny(blurred_image, lower_threshold, upper_threshold)
+
+    # # Dilate the edges to make them thicker
+    # dilated_edges = cv2.dilate(edges, None, iterations=3)  # Increase the iterations if necessary
+    
+    # # Erode to bring them back to a similar width but ensure thickness
+    # final_edges = cv2.erode(dilated_edges, None, iterations=3)  # Match the iterations used in dilation
+    final_edges = edges
+
+    return final_edges
+

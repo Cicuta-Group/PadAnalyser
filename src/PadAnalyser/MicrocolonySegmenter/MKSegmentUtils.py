@@ -154,46 +154,90 @@ def mask_indices(N,k):
     return np.mask_indices(N, mask_func=dist_mask, k=k)
 
 def split_at_indices(contour, i0, i1):
-    c_a = np.concatenate((contour[:i0], contour[i1:]))
-    c_b = contour[i0:i1]
+
+    start_index, end_index = sorted([i0, i1])
+
+    # Split the contour into two parts
+    contour_part1 = np.concatenate([contour[:start_index], contour[end_index+1:]])
+    contour_part2 = contour[start_index+1:end_index]
+    return contour_part1, contour_part2
+
+    # c_a = np.concatenate((contour[:i0], contour[i1:]))
+    # c_b = contour[i0:i1]
+    # return c_a, c_b
+
+
+def split_at_indices_symetric(contour, i0, i1, separation_ratio=0.2):
+    # Find the midpoint
+    midpoint = (contour[i0] + contour[i1]) / 2.0
+    
+    # Find the direction vector from i0 to i1
+    direction = contour[i1] - contour[i0]
+    direction_norm = np.linalg.norm(direction)
+    
+    if direction_norm == 0:  # Prevent division by zero
+        return contour, []
+
+    unit_direction = direction / direction_norm
+
+    # Offset the indices
+    separation_distance = separation_ratio * direction_norm
+    offset_i0 = midpoint - (separation_distance / 2.0) * unit_direction
+    offset_i1 = midpoint + (separation_distance / 2.0) * unit_direction
+    
+    # Create the split contours
+    c_a = np.concatenate((contour[:i0], [offset_i0], [offset_i1], contour[i1:]))
+    c_b = np.concatenate(([offset_i0], contour[i0:i1], [offset_i1]))
+
     return c_a, c_b
+
+
+from scipy.spatial import cKDTree
+
+def points_within_radius(point, points_list, radius):
+    tree = cKDTree(points_list)
+    indices = tree.query_ball_point(point, radius)
+    return indices
+
 
 from scipy import spatial
 
-def split_contour_by_point_distance(contour: np.array, min_distance: float = 2, preview=False):
+# def split_contour_by_point_distance(contour: np.array, min_distance: float = 2, preview=False):
     
-    contour_reduced = contour[:,0,:]
-    N = len(contour)
-    k = 5
-    rows, cols = mask_indices(N,k) # offset by 5 to only look at points separated by 5 points
+#     contour_reduced = contour[:,0,:]
+#     N = len(contour)
+#     k = 10
+#     rows, cols = mask_indices(N,k) # offset by k (only look at points separated by k or more points)
     
-    if rows.shape[0]:
+#     print(rows.shape, cols.shape)
+
+#     if rows.shape[0]:
         
-        d_matrix = spatial.distance_matrix(x=contour_reduced, y=contour_reduced)
-        # print(d_matrix, rows, cols)
+#         d_matrix = spatial.distance_matrix(x=contour_reduced, y=contour_reduced)
+#         # print(d_matrix, rows, cols)
 
-        ci = np.argmin(d_matrix[rows,cols]) 
-        row, col = rows[ci], cols[ci]
+#         ci = np.argmin(d_matrix[rows,cols]) 
+#         row, col = rows[ci], cols[ci]
 
-        if d_matrix[row, col] <= min_distance:
-            ca, cb = split_at_indices(contour=contour, i0=row, i1=col) # split contour on index set (row, col)
+#         if d_matrix[row, col] <= min_distance:
+#             ca, cb = split_at_indices(contour=contour, i0=row, i1=col) # split contour on index set (row, col)
 
-            # check areas are sufficiently large
-            if contour_to_area(ca) < MIN_CELL_AREA and contour_to_area(cb) < MIN_CELL_AREA: 
+#             # check areas are sufficiently large
+#             # if contour_to_area(ca) < MIN_CELL_AREA and contour_to_area(cb) < MIN_CELL_AREA: 
 
-                if preview:
-                    plt.figure()
-                    plt.title('Point distance')
-                    plt.plot(contour[:,0,0], contour[:,0,1], '--')
-                    plt.plot(ca[:,0,0], ca[:,0,1], '-o')
-                    plt.plot(cb[:,0,0], cb[:,0,1], '-o')
-                    plt.plot(contour[row,0,0], contour[row,0,1], 'co')
-                    plt.plot(contour[col,0,0], contour[col,0,1], 'co')
-                    plt.axis('equal')
+#             if preview:
+#                 plt.figure()
+#                 plt.title('Point distance')
+#                 plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#                 plt.fill(ca[:,0,0], ca[:,0,1], '-o')
+#                 plt.fill(cb[:,0,0], cb[:,0,1], '-o')
+#                 plt.plot(contour[row,0,0], contour[row,0,1], 'co')
+#                 plt.plot(contour[col,0,0], contour[col,0,1], 'co')
+#                 plt.axis('equal')
 
-                return split_contour_by_point_distance(ca, min_distance=min_distance, preview=preview) + split_contour_by_point_distance(cb, min_distance=min_distance, preview=preview)
+#             return split_contour_by_point_distance(ca, min_distance=min_distance, preview=preview) + split_contour_by_point_distance(cb, min_distance=min_distance, preview=preview)
 
-    return [contour]
+#     return [contour]
 
 
 
@@ -220,67 +264,441 @@ def curvature(contour):
 from rdp import rdp
 import itertools
 
-def split_contour_by_curvature(contour, preview=False):
+# def split_contour_by_curvature_old(contour, preview=False):
 
-    # if contour.ndim == 3: contour = contour[:,0,:] # from opencv, thre is an empty second dimension we can get rid of
+#     # if contour.ndim == 3: contour = contour[:,0,:] # from opencv, thre is an empty second dimension we can get rid of
 
-    simplified_contour = rdp(contour, epsilon=0.8)
-    # simplified_contour = filter(contour, 2)
+#     simplified_contour = rdp(contour, epsilon=0.8)
+#     # simplified_contour = filter(contour, 2)
 
-    da = curvature(simplified_contour)
-    convex_corners = da < -np.pi/6 # if corner is concave with more than 30 degrees
+#     da = curvature(simplified_contour)
+#     convex_corners = da < -np.pi/6 # if corner is concave with more than 30 degrees
 
-    convex_corners_indices = convex_corners.nonzero()[0] # get indices of convex corners
+#     convex_corners_indices = convex_corners.nonzero()[0] # get indices of convex corners
 
 
-    # loop over all unique combinatinos of two concave corner indixes
-    best_split_contours = None # check all and pick global optimum
-    best_split_separation = MIN_POINT_SEPARATION + 1 # init to some value larger than min separation limit
-    for i0, i1 in itertools.combinations(convex_corners_indices, 2):
+#     # loop over all unique combinatinos of two concave corner indixes
+#     best_split_contours = None # check all and pick global optimum
+#     best_split_separation = MIN_POINT_SEPARATION + 1 # init to some value larger than min separation limit
+#     for i0, i1 in itertools.combinations(convex_corners_indices, 2):
         
-        if abs(i0-i1) < 5: continue # valid contours must have more points than this
-        separation = np.linalg.norm(simplified_contour[i0] - simplified_contour[i1])
-        if separation > MIN_POINT_SEPARATION: continue # points muse be closer than this
-        if separation >= best_split_separation: continue # not interested in solution if we have found one with closer points before
+#         if abs(i0-i1) < 5: continue # valid contours must have more points than this
+#         separation = np.linalg.norm(simplified_contour[i0] - simplified_contour[i1])
+#         if separation > MIN_POINT_SEPARATION: continue # points muse be closer than this
+#         if separation >= best_split_separation: continue # not interested in solution if we have found one with closer points before
         
-        # split to new proposed contours
-        c_a, c_b = split_at_indices(contour=simplified_contour, i0=i0, i1=i1)
+#         # split to new proposed contours
+#         c_a, c_b = split_at_indices(contour=simplified_contour, i0=i0, i1=i1)
         
-        # check areas are sufficiently large
-        if contour_to_area(c_a) < MIN_CELL_AREA: continue
-        if contour_to_area(c_b) < MIN_CELL_AREA: continue
+#         # check areas are sufficiently large
+#         if contour_to_area(c_a) < MIN_CELL_AREA: continue
+#         if contour_to_area(c_b) < MIN_CELL_AREA: continue
 
-        best_split_contours = (c_a, c_b)
-        best_split_separation = separation
+#         best_split_contours = (c_a, c_b)
+#         best_split_separation = separation
 
-    if best_split_contours:
-        c_a, c_b = best_split_contours
+#     if best_split_contours:
+#         c_a, c_b = best_split_contours
 
+#         if preview:
+#             plt.figure()
+#             plt.title('Curvature')
+#             plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#             plt.plot(c_a[:,0,0], c_a[:,0,1], '-o')
+#             plt.plot(c_b[:,0,0], c_b[:,0,1], '-o')
+#             plt.plot(simplified_contour[i0,0,0], simplified_contour[i0,0,1], 'co')
+#             plt.plot(simplified_contour[i1,0,0], simplified_contour[i1,0,1], 'co')
+#             plt.axis('equal')
+        
+#         # recurse on sub-contours in case they can be split into more contours
+#         return split_contour_by_curvature(c_a, preview=preview) + split_contour_by_curvature(c_b, preview=preview)
+
+#     if preview:
+#         plt.figure()
+#         plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#         plt.axis('equal')
+
+#     return [contour]
+
+
+# def split_contour_by_curvature2(contour, preview=False):
+
+#     # if contour.ndim == 3: contour = contour[:,0,:] # from opencv, thre is an empty second dimension we can get rid of
+
+#     simplified_contour = rdp(contour, epsilon=0.8)
+#     # simplified_contour = filter(contour, 2)
+
+#     da = curvature(simplified_contour)
+#     convex_corners = da < -np.pi/6 # if corner is concave with more than 30 degrees
+
+#     convex_corners_indices = convex_corners.nonzero()[0] # get indices of convex corners
+
+
+#     # loop over all unique combinatinos of two concave corner indixes
+#     best_split_contours = None # check all and pick global optimum
+#     best_split_separation = MIN_POINT_SEPARATION + 1 # init to some value larger than min separation limit
+#     for i0, i1 in itertools.combinations(convex_corners_indices, 2):
+        
+#         if abs(i0-i1) < 5: continue # valid contours must have more points than this
+#         separation = np.linalg.norm(simplified_contour[i0] - simplified_contour[i1])
+#         if separation > MIN_POINT_SEPARATION: continue # points muse be closer than this
+#         if separation >= best_split_separation: continue # not interested in solution if we have found one with closer points before
+        
+#         # split to new proposed contours
+#         c_a, c_b = split_at_indices(contour=simplified_contour, i0=i0, i1=i1)
+        
+#         # check areas are sufficiently large
+#         if contour_to_area(c_a) < MIN_CELL_AREA: continue
+#         if contour_to_area(c_b) < MIN_CELL_AREA: continue
+
+#         best_split_contours = (c_a, c_b)
+#         best_split_separation = separation
+
+#     if best_split_contours:
+#         c_a, c_b = best_split_contours
+
+#         if preview:
+#             plt.figure()
+#             plt.title('Curvature')
+#             plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#             plt.plot(c_a[:,0,0], c_a[:,0,1], '-o')
+#             plt.plot(c_b[:,0,0], c_b[:,0,1], '-o')
+#             plt.plot(simplified_contour[i0,0,0], simplified_contour[i0,0,1], 'co')
+#             plt.plot(simplified_contour[i1,0,0], simplified_contour[i1,0,1], 'co')
+#             plt.axis('equal')
+        
+#         # recurse on sub-contours in case they can be split into more contours
+#         return split_contour_by_curvature(c_a, preview=preview) + split_contour_by_curvature(c_b, preview=preview)
+
+#     if preview:
+#         plt.figure()
+#         plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#         plt.axis('equal')
+
+#     return [contour]
+
+
+
+
+
+
+# def split_contour(contour, preview=True):
+#     da = curvature(contour)
+#     pinch_points = np.where(np.abs(da) > np.pi / 6)[0]
+
+#     for i in pinch_points:
+#         next_i = (i + 1) % len(contour)
+#         c_a = np.concatenate((contour[:i], contour[next_i:]))
+#         c_b = contour[i:next_i]
+        
+#         if contour_to_area(c_a) >= MIN_CELL_AREA and contour_to_area(c_b) >= MIN_CELL_AREA:
+
+#             if preview:
+#                 plt.figure()
+#                 plt.title('Curvature')
+#                 plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#                 plt.plot(c_a[:,0,0], c_a[:,0,1], '-o')
+#                 plt.plot(c_b[:,0,0], c_b[:,0,1], '-o')
+#                 plt.axis('equal')
+
+
+#             return split_contour(c_a) + split_contour(c_b)
+    
+#     if preview:
+#         plt.figure()
+#         plt.title('Curvature')
+#         plt.plot(contour[:,0,0], contour[:,0,1], '--')
+#         plt.plot(contour[pinch_points,0,0], contour[pinch_points,0,1], 'o')
+#         plt.plot(c_a[:,0,0], c_a[:,0,1], '-o')
+#         plt.plot(c_b[:,0,0], c_b[:,0,1], '-o')
+#         plt.axis('equal')
+
+#     return [contour]
+
+
+from scipy.interpolate import splprep, splev
+from typing import Optional
+
+def compute_curvature(contour: np.ndarray, smoothing: int = 5, preview: bool = False) -> Optional[np.ndarray]:
+    # Parametrically represent the contour as a B-spline
+    try:
+        tck, u = splprep([contour[:,0,0], contour[:,0,1]], s=smoothing, per=True)
+    except Exception as e:
         if preview:
-            plt.figure()
-            plt.title('Curvature')
+            plt.title('Error computing curvature')
             plt.plot(contour[:,0,0], contour[:,0,1], '--')
-            plt.plot(c_a[:,0,0], c_a[:,0,1], '-o')
-            plt.plot(c_b[:,0,0], c_b[:,0,1], '-o')
-            plt.plot(simplified_contour[i0,0,0], simplified_contour[i0,0,1], 'co')
-            plt.plot(simplified_contour[i1,0,0], simplified_contour[i1,0,1], 'co')
-            plt.axis('equal')
-        
-        # recurse on sub-contours in case they can be split into more contours
-        return split_contour_by_curvature(c_a, preview=preview) + split_contour_by_curvature(c_b, preview=preview)
+        return None
 
+    # Derive the B-spline to get the tangent (first derivative)
+    dx, dy = splev(u, tck, der=1)
+    
+    # Derive the B-spline again to get the curvature (second derivative)
+    ddx, ddy = splev(u, tck, der=2)
+    
+    # Compute the curvature
+    curvature = (dx * ddy - dy * ddx) / np.power(dx**2 + dy**2, 1.5)
+    
     if preview:
-        plt.figure()
-        plt.plot(contour[:,0,0], contour[:,0,1], '--')
-        plt.axis('equal')
+        # Evaluate the spline over a range of parameter values for plotting
+        new_u = np.linspace(0, 1, len(contour))
+        fitted_x, fitted_y = splev(new_u, tck)
+        plt.plot(fitted_x, fitted_y, 'r-', label='Fitted B-spline')
+    
+    return curvature
 
-    return [contour]
+# def locally_closest_points(contour, pa_index, pb_index, search_distance=5):
+#     """
+#     Find the closest points on the contour to the points at pa_index and pb_index, respectively,
+#     within a limited search range defined by search_distance.
+    
+#     Parameters:
+#         - contour: A 2D numpy array representing the contour.
+#         - pa_index, pb_index: Indices of seed points on the contour.
+#         - search_distance: The number of points before and after the seed point indices to be considered.
+        
+#     Returns:
+#         - closest_point_to_pa_index, closest_point_to_pb_index: The closest point indices on the contour to pa_index and pb_index, respectively.
+#     """
+    
+#     # Define the search ranges
+#     pa_search_range = contour[max(0, pa_index - search_distance) : min(len(contour), pa_index + search_distance + 1)]
+#     pb_search_range = contour[max(0, pb_index - search_distance) : min(len(contour), pb_index + search_distance + 1)]
+    
+#     # Find closest points in the search ranges
+    
+#     d_matrix = spatial.distance_matrix(x=pa_search_range, y=pb_search_range)
+#     # print(d_matrix, rows, cols)
 
+#     ci = np.argmin(d_matrix)
+    
+#     i1, i2 = np.unravel_index(ci, d_matrix.shape)
+#     # print(d_matrix)
+#     # print(ci, i1, i2, pa_search_range[i1], pb_search_range[i2])
+
+#     # find index in original contour of i1 and i2
+#     closest_point_to_pa_index = np.where(np.all(contour == pa_search_range[i1], axis=1))[0][0]
+#     closest_point_to_pb_index = np.where(np.all(contour == pb_search_range[i2], axis=1))[0][0]
+
+#     return closest_point_to_pa_index, closest_point_to_pb_index
+
+
+def locally_closest_points(contour, pa_index, pb_index, search_distance=5):
+    """
+    Find the closest points on the contour to the points at pa_index and pb_index, respectively,
+    within a limited search range defined by search_distance.
+    
+    Parameters:
+        - contour: A 2D numpy array representing the contour.
+        - pa_index, pb_index: Indices of seed points on the contour.
+        - search_distance: The number of points before and after the seed point indices to be considered.
+        
+    Returns:
+        - closest_point_to_pa_index, closest_point_to_pb_index: The closest point indices on the contour to pa_index and pb_index, respectively.
+    """
+    
+    # Define the search ranges
+    pa_indices_range = np.arange(max(0, pa_index - search_distance), min(len(contour), pa_index + search_distance + 1))
+    pb_indices_range = np.arange(max(0, pb_index - search_distance), min(len(contour), pb_index + search_distance + 1))
+    
+    pa_search_range = contour[pa_indices_range,0,:]
+    pb_search_range = contour[pb_indices_range,0,:]
+    
+    # Find closest points in the search ranges
+    d_matrix = spatial.distance_matrix(x=pa_search_range, y=pb_search_range)
+
+    ci = np.argmin(d_matrix)
+    
+    i1, i2 = np.unravel_index(ci, d_matrix.shape)
+
+    # Get the indices directly from pa_indices_range and pb_indices_range
+    closest_point_to_pa_index = pa_indices_range[i1]
+    closest_point_to_pb_index = pb_indices_range[i2]
+
+    return closest_point_to_pa_index, closest_point_to_pb_index
+
+
+
+def find_opposite_point(contour, point):
+    # Compute the centroid of the contour
+    M = cv.moments(contour)
+    centroid = (int(M['m10'] / M['m00']), int(M['m01'] / M['m00']))
+    
+    # Construct the vector from the centroid to the given point
+    vector = np.array(point) - np.array(centroid)
+    
+    # Extend this vector to the other side
+    opposite_approx = np.array(centroid) - vector
+
+    # Find the point on the contour closest to this opposite point
+    closest_point = min(contour, key=lambda x: np.linalg.norm(x - opposite_approx))
+
+    return closest_point[0]
+
+
+def index_separation_in_array(i0, i1, N):
+    return min(abs(i0-i1), N-abs(i0-i1))
+
+import scipy.signal as signal
+import itertools
+
+MIN_POINT_INDEX_DISTANCE = 10 # 10
+MAX_POINT_DISTANCE = 10 # px
+MIN_CURVATURE = 0.1 # 0.06
+SPLIT_RADIUS = 2 # px
+
+
+def closest_point_on_other_side_of_contour(point_index: int, contour: np.ndarray, index_separation_limit: int) -> tuple[int, int]:
+    
+    close_points_indices = points_within_radius(contour[point_index][0], contour[:,0], SPLIT_RADIUS)
+    close_points_indices = [j for j in close_points_indices if index_separation_in_array(point_index, j, len(contour)) > index_separation_limit]
+    
+    if len(close_points_indices) == 0: return None
+
+    distances = np.linalg.norm(contour[point_index][0] - contour[close_points_indices][:,0], axis=1)    
+    closest_point_index = close_points_indices[np.argmin(distances)]
+    i0, i1 = locally_closest_points(contour, point_index, closest_point_index, search_distance=5)
+
+    if index_separation_in_array(i0, i1, len(contour)) < index_separation_limit : return None # if shifting points made them closer it is not valid
+    return i0, i1
+
+
+def split_contour_by_curvature(contour: np.ndarray, debug: bool=False) -> list[np.ndarray]:
+    
+    if len(contour) < 2*MIN_POINT_INDEX_DISTANCE: return [contour]
+
+    if debug:
+        _, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        plt.sca(ax1) # for plot in compute_curvature()
+
+    curvature = compute_curvature(contour, smoothing=10, preview=debug)
+    if curvature is None: return [contour]
+
+    # find peaks with amplitude above threshold
+    peaks_indices, _ = signal.find_peaks(curvature, height=MIN_CURVATURE, distance=MIN_POINT_INDEX_DISTANCE)
+    peak_points = contour[peaks_indices]
+
+    index_separation_limit = np.max([len(contour)//5, MIN_POINT_INDEX_DISTANCE]) # make sure split does not make contour too asymetric
+
+    if debug:
+        ax1.plot(contour[:,0,0], contour[:,0,1], 'k-', alpha=0.2)  # 'k-' means black color line
+        
+        sc = ax1.scatter(contour[:,0,0], contour[:,0,1], c=curvature, cmap='viridis', s=4)
+        plt.colorbar(sc, ax=ax1)
+        ax1.set_aspect('equal', 'box')
+
+        # Highlight significant positive and negative curvature points
+        ax1.plot(peak_points[:,0,0], peak_points[:,0,1], 'ro', markersize=6, label='Pinch points')  # Adjust 0.5 threshold as needed
+        
+        # Second subplot: Raw Curvature Values
+        ax2.set_title(f"Curvature Values")
+        ax2.plot(np.maximum(0, curvature), 'g-')
+        ax2.hlines(MIN_CURVATURE, 0, len(curvature), colors='r', linestyles='dashed', label='Threshold')
+        
+        ax2.set_xlabel("Contour Point Index")
+        ax2.set_ylabel("Curvature")
+        
+        plt.tight_layout()
+
+
+    # find point on other side of contour that is closest -> see if they are close enough
+    closest_point_indices = [closest_point_on_other_side_of_contour(i, contour, index_separation_limit) for i in peaks_indices]
+    closest_point_indices = np.array([i for i in closest_point_indices if i is not None])
+
+    if len(closest_point_indices):
+        distances = np.linalg.norm(contour[closest_point_indices[:,0]][:,0] - contour[closest_point_indices[:,1]][:,0], axis=1)
+        closest_index = np.argmin(distances)
+        i0, i1 = closest_point_indices[closest_index]
+
+        ca, cb = split_at_indices(contour, i0, i1)
+
+        if debug:
+            plt.title('Split based on distance')
+            ax1.fill(ca[:,0,0], ca[:,0,1], 'r-', alpha=0.2)
+            ax1.fill(cb[:,0,0], cb[:,0,1], 'g-', alpha=0.2)
+            
+            pa = contour[i0][0]
+            pb = contour[i1][0]
+            ax1.plot([pa[0], pb[0]], [pa[1], pb[1]], 'go', markersize=4, label='Closest')  # Adjust 0.5 threshold as needed
+        
+        closest_distance = distances[closest_index]
+        index_separation = index_separation_in_array(i0, i1, len(contour))
+        print('Distance split', len(ca), len(cb), closest_distance, index_separation, i0, i1, len(contour))
+        return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
+
+
+    # compare all combinations of peak points using itertools
+    # find the pair with the smallest distance
+    closest = None
+    closest_distance = np.inf
+    for p1i, p2i in itertools.combinations(peaks_indices, 2):
+        
+        pai, pbi = locally_closest_points(contour, p1i, p2i)
+    
+        pa, pb = contour[pai][0], contour[pbi][0]
+        d = np.linalg.norm(pa - pb)
+
+        index_separation = index_separation_in_array(pai, pbi, len(contour))
+
+        if d < closest_distance and index_separation > index_separation_limit:
+            closest_distance = d
+            closest = (pai, pbi, pa, pb)
+
+    
+    if closest is None: return [contour]
+    
+    pai, pbi, pa, pb = closest
+    
+    if closest_distance > MAX_POINT_DISTANCE: return [contour]
+
+    ca, cb = split_at_indices(contour, pai, pbi)
+    
+    if debug:
+        # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        
+        # # First subplot: Contour with Curvature Color Coding
+        # ax1.set_title("Contour with Curvature Coloring")
+        # ax1.plot(c[:, 0], c[:, 1], 'k-', alpha=0.2)  # 'k-' means black color line
+        plt.title('Split based on curvature')
+        ax1.fill(ca[:,0,0], ca[:,0,1], 'r-', alpha=0.2)
+        ax1.fill(cb[:,0,0], cb[:,0,1], 'g-', alpha=0.2)
+        
+        ax1.plot([pa[0], pb[0]], [pa[1], pb[1]], 'go', markersize=4, label='Closest')  # Adjust 0.5 threshold as needed
+    
+    print('Curvature split', len(ca), len(cb), closest_distance, index_separation, pai, pbi, len(contour))
+    return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
+
+
+
+
+def label_contours(contours, frame_size):
+    """
+    Creates a labeled image where each contour is assigned a unique number.
+    
+    Args:
+    - contours (list): List of contours, where each contour is represented by a list of points.
+    - frame_size (tuple): The size of the frame as (height, width).
+
+    Returns:
+    - numpy.ndarray: A labeled image with the same size as the frame.
+    """
+    labeled_img = np.zeros(frame_size, dtype=np.int32)
+    
+    for idx, contour in enumerate(contours, start=1):
+        cv.drawContours(labeled_img, [contour], 0, idx, thickness=cv.FILLED)
+        
+    return labeled_img
 
 
 def mask_from_contour(c, padding):
-    c_min = np.min(c[:,0,:],0) - padding
-    c_max = np.max(c[:,0,:],0) + padding + 1 # add one to make padding symetrical on all sides
+    try:
+        c_min = np.min(c[:,0,:],0) - padding
+        c_max = np.max(c[:,0,:],0) + padding + 1 # add one to make padding symetrical on all sides
+    
+    except Exception as e:
+        print(e)
+        print(c)
+        return None, None
+
     size = c_max-c_min
 
     mask = np.zeros(size[::-1])
@@ -389,12 +807,9 @@ def id_from_frame_and_outline(f, contour):
 '''
 Only keeps top-level contours above threshold size
 '''
-def contour_filter(cs, hierarchy, min_area):
+def contour_filter(cs, min_area):
     
     filter = np.array([contour_to_area(c) > min_area for c in cs])
-
-    if not isinstance(hierarchy, type(None)):
-        filter *= hierarchy[0][:,3] < 0 # must be index -1 (top level)
     
     return [cs[i] for i, included in enumerate(filter) if included]
 
@@ -590,7 +1005,7 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
                 f = text_on_frame(f, label, (x+10,y+10), dinfo.font_file)
 
     if dinfo.crop != None:
-        (x0,x1), (y0, y1) = dinfo.crop
+        (x0,x1), (y0,y1) = dinfo.crop
         f = f[y0:y1, x0:x1]
 
     if dinfo.live_plot:
@@ -606,6 +1021,35 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
         im = Image.fromarray(f)
         im.save(os.path.join(dinfo.image_dir, dinfo.label + '.png'))
     
+
+'''
+Plot masks with color corresponding to cell area
+'''
+def plot_frame_color_area(f, dinfo, contours):
+    
+    max_area = 1 if len(contours) == 0 else np.max([contour_to_area(contour) for contour in contours])
+    def area_color(index, contour): 
+        area = contour_to_area(contour)
+        return (area*255/max_area, 0, 255-area*255/max_area) # r,g,b
+    
+    plot_frame(f, dinfo=dinfo, contours=contours, contour_thickness=cv.FILLED, contour_color_function=area_color)
+
+'''
+Plot masks with color corresponding to distance from colony edge
+'''
+def plot_frame_color_edist(f, dinfo, cell_contours, colony_contours):
+    
+    cell_centroids = oneD_stats(centroid, cell_contours)
+    cell_distance = cell_distance_from_colony_border(cell_centroids, colony_contours, f.shape)
+    max_dist = np.max(cell_distance) if len(cell_distance) else 1
+    def edge_distance_function(index, contour):
+        d = cell_distance[index]
+        return (d*255/max_dist, 0, 255-d*255/max_dist) # r,g,b
+    
+    plot_frame(f, dinfo=dinfo, contours=cell_contours, contour_thickness=cv.FILLED, contour_color_function=edge_distance_function)
+
+
+
 
 def frame_with_cs_ss_offset(frame, cs_contours, cs_ids, ss_contours, ss_ids, offset, cs_on_border, ss_stroke=1):
     f = norm(frame).astype(np.uint8)

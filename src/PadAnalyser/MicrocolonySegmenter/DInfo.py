@@ -14,7 +14,7 @@ class DInfo:
     video: bool = True # if it should output video debug file
     image_dir: str = None # output debug images to spesified directory
     video_dir: str = None # output debug videos to spesified directory
-    crop: tuple[tuple[int]] = None # region to crop output images to
+    crop: tuple[tuple[int]] = None # region to crop output images to, (x0,x1), (y0,y1)
     printing: bool = False
     
 
