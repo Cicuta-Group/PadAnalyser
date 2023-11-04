@@ -15,7 +15,12 @@ import cv2 as cv
 from PadAnalyser.MicrocolonySegmenter import MKSegmentUtils
 
 
+kc3 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(3,3)).astype(np.uint8)
 kc5 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(5,5)).astype(np.uint8)
+kc7 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(7,7)).astype(np.uint8)
+kc13 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(13,13)).astype(np.uint8)
+kc21 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(21,21)).astype(np.uint8)
+kc51 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(51,51)).astype(np.uint8)
 
 
 # Dilate contour by converting to mask, dilating and converting back to contour
@@ -171,3 +176,19 @@ def robust_edge_detection(gray_image, lower_threshold=50, upper_threshold=150):
 
     return final_edges
 
+def center_of_widest_point(mask):
+    distance_transform = ndimage.distance_transform_edt(mask)
+    center = np.unravel_index(np.argmax(distance_transform), distance_transform.shape)
+    return center # y,x
+
+
+def should_keep_colony(mask, filter_mask):
+
+    # filter based on area
+    if np.sum(mask) < MKSegmentUtils.MIN_COLONY_AREA:
+        return False
+
+    # remove if 
+    x,y = center_of_widest_point(mask)
+    if filter_mask[x,y] == 1: 
+        return False

@@ -517,24 +517,6 @@ def locally_closest_points(contour, pa_index, pb_index, search_distance=5):
     return closest_point_to_pa_index, closest_point_to_pb_index
 
 
-
-def find_opposite_point(contour, point):
-    # Compute the centroid of the contour
-    M = cv.moments(contour)
-    centroid = (int(M['m10'] / M['m00']), int(M['m01'] / M['m00']))
-    
-    # Construct the vector from the centroid to the given point
-    vector = np.array(point) - np.array(centroid)
-    
-    # Extend this vector to the other side
-    opposite_approx = np.array(centroid) - vector
-
-    # Find the point on the contour closest to this opposite point
-    closest_point = min(contour, key=lambda x: np.linalg.norm(x - opposite_approx))
-
-    return closest_point[0]
-
-
 def index_separation_in_array(i0, i1, N):
     return min(abs(i0-i1), N-abs(i0-i1))
 
@@ -626,7 +608,10 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=
             print('Distance split', len(ca), len(cb), closest_distance, index_separation, i0, i1, len(contour))
         return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
 
+    return [contour]
 
+    # Look for pinch points
+    
     # compare all combinations of peak points using itertools
     # find the pair with the smallest distance
     closest = None

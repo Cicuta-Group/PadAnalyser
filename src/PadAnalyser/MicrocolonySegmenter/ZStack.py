@@ -307,6 +307,11 @@ def plot_z_scores(z_scores, z_score_means, z_score_peaks, dinfo):
 
 def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
 
+    if zstack[0].dtype == np.uint8:
+        if dinfo.printing:
+            print('Warning: zstack is uint8, converting to uint16')
+        zstack = [f.astype(np.uint16)*255 for f in zstack]
+
     if dinfo.printing:
         if zstack[0].dtype != np.uint16:
             print('Warning: zstack is not uint16')

@@ -3,6 +3,7 @@ from . import MKSegmentUtils, DInfo, CellSegmentMods
 import numpy as np
 import cv2 as cv
 import scipy.signal
+import scipy.ndimage as ndimage
 from skimage import segmentation
 
 
@@ -66,21 +67,88 @@ def bf_colony_segment(f, dinfo: DInfo):
     return contours
 
 
-def bf_via_edges(frame, dinfo):
+def bf_laplacian(f, dinfo: DInfo):
     
-    col_edges = CellSegmentMods.robust_edge_detection(frame, lower_threshold=30, upper_threshold=170)
-    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(col_edges), dinfo=dinfo.append_to_label('col_edges'))
-    
-    # moiph fill
-    moiph = cv.morphologyEx(col_edges, cv.MORPH_CLOSE, CellSegmentMods.kc5, iterations=2)
-    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(moiph), dinfo=dinfo.append_to_label('col_edges2'))
-    
+    l = CellSegmentMods.laplacian_of_gaussian(f, sigma=2, ksize=7)
 
-    contours, _  = cv.findContours(moiph.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('8_contours_all'), contours=contours, contour_thickness=2)
+    ### Colony outline from laplacian -> m0
+    # for t in [1,2,3,4,5,10]:
+    #     for s in [-1,-2,-3, -4, -5, -10]:
+    #         M00 =  np.logical_or(s > M0, M0 > t)
+    #         MKSegmentUtils.plot_frame(M00, title=f'{label}_col_2_M00_{s}_{t}', plot=plot, dir=debug_dir, crop=crop)
+
+    # MKSegmentUtils.plot_frame(-THRESHOLD >= m0, dinfo=dinfo.append_to_label('2_m0n'))
+    # MKSegmentUtils.plot_frame(THRESHOLD <= m0, dinfo=dinfo.append_to_label('2_m0p'))
+
+    # m0 =  np.logical_or(-THRESHOLD >= m0, m0 >= THRESHOLD)
+    m0 = 1500 <= l
+    MKSegmentUtils.plot_frame(m0, dinfo=dinfo.append_to_label('2_m0'))
+
+
+    # moiph fill
+    m0 = m0.astype(np.uint8)
+    # remove background noise
+    m0 = cv.morphologyEx(m0, cv.MORPH_OPEN, CellSegmentMods.kc3, iterations=1)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m0), dinfo=dinfo.append_to_label('c1'))
+    # fill holes
+    m0 = cv.morphologyEx(m0, cv.MORPH_CLOSE, CellSegmentMods.kc5, iterations=2)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m0), dinfo=dinfo.append_to_label('c2'))
+    # m0 = cv.morphologyEx(m0, cv.MORPH_CLOSE, CellSegmentMods.kc5, iterations=2)
+    # MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m0), dinfo=dinfo.append_to_label('c2'))
+    
+    # m0 = cv.morphologyEx(m0, cv.MORPH_OPEN, CellSegmentMods.kc3, iterations=1)
+    # MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m0), dinfo=dinfo.append_to_label('c1'))
+
+    
+    # Agressive thresholding to remove debris and lysed colonies
+
+    m1 = 4000 <= l
+    MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('2_m1'))
+
+    m1 = m1.astype(np.uint8)
+    m1 = cv.morphologyEx(m1, cv.MORPH_OPEN, CellSegmentMods.kc3, iterations=1)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m1), dinfo=dinfo.append_to_label('c1'))
+    m1 = cv.morphologyEx(m1, cv.MORPH_DILATE, CellSegmentMods.kc21, iterations=2)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m1), dinfo=dinfo.append_to_label('c1'))
+
+    m0 = segmentation.clear_border(m0, buffer_size=10)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m0), dinfo=dinfo.append_to_label('c1'))
+
+    ml, num_features = ndimage.label(m0)
+
+    # filter 
+    for i in range(1, num_features+1):
+        mask = ml==i
+        
+        if not CellSegmentMods.should_keep_colony(mask, filter_mask=m1):
+            ml = np.where(mask, 0, ml)
+    
+    contours, _  = cv.findContours((ml>0).astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    MKSegmentUtils.plot_frame(f, dinfo=dinfo.append_to_label('8_contours_all'), contours=contours, contour_thickness=2)
     
     contours = MKSegmentUtils.contour_filter(contours, min_area=MKSegmentUtils.MIN_COLONY_AREA)
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('9_contours_filtered'), contours=contours, contour_thickness=2)
+    MKSegmentUtils.plot_frame(f, dinfo=dinfo.append_to_label('9_contours_filtered'), contours=contours, contour_thickness=2)
+    
+    p0s = [CellSegmentMods.center_of_widest_point(c) for c in contours]    
 
     ## Done! -> contours
     return contours
+
+
+def bf_via_edges(frame, dinfo, lower_threshold=30, upper_threshold=170, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_iterations=2):
+    
+    col_edges = CellSegmentMods.robust_edge_detection(frame, lower_threshold=lower_threshold, upper_threshold=upper_threshold)
+    MKSegmentUtils.plot_frame(MKSegmentUtils.norm(col_edges), dinfo=dinfo.append_to_label('col_edges'))
+    
+    # # moiph fill
+    # moiph = cv.morphologyEx(col_edges, cv.MORPH_CLOSE, CellSegmentMods.kc5, iterations=close_iterations)
+    # MKSegmentUtils.plot_frame(MKSegmentUtils.norm(moiph), dinfo=dinfo.append_to_label('col_edges2'))
+
+    # contours, _  = cv.findContours(moiph.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('8_contours_all'), contours=contours, contour_thickness=2)
+    
+    # contours = MKSegmentUtils.contour_filter(contours, min_area=min_area)
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('9_contours_filtered'), contours=contours, contour_thickness=2)
+
+    # ## Done! -> contours
+    # return contours
