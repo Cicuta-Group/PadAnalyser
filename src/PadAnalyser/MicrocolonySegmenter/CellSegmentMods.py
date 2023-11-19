@@ -11,10 +11,12 @@ from skimage.morphology import extrema
 from scipy.ndimage import convolve
 import numpy as np
 import cv2 as cv
+import logging
 
 from PadAnalyser.MicrocolonySegmenter import MKSegmentUtils
 
-
+# Kernels 
+k3 = np.ones((3,3), np.uint8)
 kc3 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(3,3)).astype(np.uint8)
 kc5 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(5,5)).astype(np.uint8)
 kc7 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(7,7)).astype(np.uint8)
@@ -27,6 +29,7 @@ kc51 = cv.getStructuringElement(cv.MORPH_ELLIPSE,(51,51)).astype(np.uint8)
 def dilate_contour(c):
     mask, c_min = MKSegmentUtils.mask_from_contour(c, padding=5)
     mask = cv.dilate(mask, kernel=MKSegmentUtils.k5_circle, iterations=1)
+    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel=MKSegmentUtils.k5_circle, iterations=1) # needed for larger spherical cells like ecoli BE151_69_g2_bf_i08
     ca, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     return ca[0]+c_min
     
@@ -48,6 +51,7 @@ def laplacian_uint8(f):
 
 
 def laplacian_of_gaussian(image, sigma, ksize):
+    logging.info(f'LoG {sigma=}, {ksize=}')
     blurred = cv.GaussianBlur(image, (0, 0), sigma)
     return cv.Laplacian(blurred, ddepth=cv.CV_64F, ksize=ksize)
 
@@ -159,24 +163,17 @@ def label_contour_in_mask(mask, dinfo):
 
 
 
-def robust_edge_detection(gray_image, lower_threshold=50, upper_threshold=150):
+def center_of_widest_point(contour: np.ndarray):
     
-    # Apply Gaussian blur
-    blurred_image = gray_image # cv2.GaussianBlur(gray_image, (3, 3), 0)
-    
-    # Apply the Canny edge detector
-    edges = cv.Canny(blurred_image, lower_threshold, upper_threshold)
+    mask, c_min = MKSegmentUtils.mask_from_contour(contour, padding=0)
+    distance_transform = ndimage.distance_transform_edt(mask)
+    center = np.unravel_index(np.argmax(distance_transform), distance_transform.shape)
 
-    # # Dilate the edges to make them thicker
-    # dilated_edges = cv2.dilate(edges, None, iterations=3)  # Increase the iterations if necessary
-    
-    # # Erode to bring them back to a similar width but ensure thickness
-    # final_edges = cv2.erode(dilated_edges, None, iterations=3)  # Match the iterations used in dilation
-    final_edges = edges
+    return c_min[::-1] + [center[1], center[0]] # y,x
 
-    return final_edges
 
-def center_of_widest_point(mask):
+
+def center_of_widest_point_from_mask(mask):
     distance_transform = ndimage.distance_transform_edt(mask)
     center = np.unravel_index(np.argmax(distance_transform), distance_transform.shape)
     return center # y,x
@@ -192,3 +189,14 @@ def should_keep_colony(mask, filter_mask):
     x,y = center_of_widest_point(mask)
     if filter_mask[x,y] == 1: 
         return False
+    
+
+def mean_value_in_contour(contour, f):
+    mask = np.zeros_like(f)
+    cv.drawContours(mask, [contour], -1, color=1, thickness=cv.FILLED)
+    return np.mean(f[mask == 1])
+
+def std_value_in_contour(contour, f):
+    mask = np.zeros_like(f)
+    cv.drawContours(mask, [contour], -1, color=1, thickness=cv.FILLED)
+    return np.std(f[mask == 1])

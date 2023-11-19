@@ -358,6 +358,9 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
     return f_best, plane_coefficients
 
 
+def clip(frame, percentile=99.999): 
+    lower_percentile, upper_percentile = np.percentile(frame, q=[100-percentile, percentile])    
+    return np.clip(frame, lower_percentile, upper_percentile)
 
 
 '''
@@ -373,12 +376,12 @@ def flatten_stack(stack, dinfo):
     elif len(stack) == 1: frame_raw = stack[0]
     else: frame_raw, plane_coefficients = project_to_plane(stack, dinfo=dinfo) # compute laplacian from normalized frame
 
-
-    if frame_raw.dtype == np.uint8: frame_raw = frame_raw.astype(np.uint16)
+    if frame_raw.dtype == np.uint8: frame_raw = frame_raw.astype(np.uint16)*255
     
-    frame_blurred = cv.GaussianBlur(frame_raw, (3, 3), 0) # blur before norm to reduce outliers
+    frame_clipped = clip(frame_raw)
+    frame_blurred = cv.GaussianBlur(frame_clipped, (3, 3), 0) # blur before norm to reduce outliers
     frame8 = MKSegmentUtils.norm(frame_blurred)
-
+    
     # frame16 = MKSegmentUtils.normanlize_uint16(frame_raw)
     # frame = MKSegmentUtils.to_dtype_uint8(frame_raw)
 

@@ -18,7 +18,6 @@ class OutputConfig:
     clear_dirs: bool # clear output and debug directories on run. If false, old files will be overwritten.
     process_count: Optional[int] # number of processes to run in paralell. 1 for single threaded. None for as many as possible. 
 
-    font_file: str = 'arial.ttf' # font file for text overlay on images
     dataframe_version: str = 'D1.0'
 
     debug_output: bool = False # output debug images and videos

@@ -38,7 +38,7 @@ def process_dataframe(df):
 
     if not 'ss_area_total_growth_rate' in df.columns: return
 
-    add_termination_marker_columns(df=df)
+    # add_termination_marker_columns(df=df)
 
     add_colony_lysis_columns(df)
     add_present_for_duration_column(df)
@@ -53,7 +53,7 @@ def process_dataframe(df):
 
 def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.DataFrame:
     
-    keys = ['colony_area', 'colony_arc_length', 'colony_on_border', 'colony_id', 'colony_ID', 'colony_name'] # for all keys, see MKTImeseriesAnalyzer EOF
+    keys = ['colony_area', 'colony_arc_length', 'colony_id', 'colony_ID', 'colony_name'] # for all keys, see MKTImeseriesAnalyzer EOF
     ss_keys = MKSegmentUtils.SS_STATS_KEYS
     
     id_key = 'colony_id'
@@ -290,7 +290,8 @@ def low_pass_filter_column(df, column):
     if raw_column not in df:
         df.rename(columns={column: raw_column}, inplace=True)
 
-    df_q = df.query('colony_on_border == False') if ('colony_on_border' in df) else df
+    df_q = df
+    # df_q = df_q.query('colony_on_border == False') if ('colony_on_border' in df) else df
     df_q = df_q.dropna(subset=[raw_column])
 
     for _, df_group in df_q.groupby(SERIES_KEY): # get dataframe containing data for only one colony
@@ -365,7 +366,7 @@ def add_time_bin_column(df, interval: int): # interval in minutes
     round_times = df['round_time'].unique()/60
     bins = list(range(int(np.min(round_times)), int(np.max(round_times)), interval))
     labels = [f'{a}-{b} min' for a,b in zip(bins, bins[1:])]
-    df['time_bin'] = pd.cut(df['round_time']/60, bins, labels=labels, include_lowest=True, right=False)
+    # df['time_bin'] = pd.cut(df['round_time']/60, bins, labels=labels, include_lowest=True, right=False)
 
     # float number, rounding down to nearest interval
     TIME_BIN_30 = 30 # minutes
@@ -432,8 +433,6 @@ def add_normalized_to_self_column(df, key, numeric_keys, text_keys):
             start_group = df_query.groupby('round_time_hours').agg({key: 'mean'})
             free_mean_value = start_group.iloc[1]
             df.loc[df_query.index, f'{key}_normalized'] = df_query[key]/float(free_mean_value)
-
-
 
 
 

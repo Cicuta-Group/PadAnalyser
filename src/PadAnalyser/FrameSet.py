@@ -2,6 +2,7 @@
 from typing import List, Union
 from PIL import Image
 import numpy as np
+import cv2 as cv
 
 import dataclasses
 from abc import ABC, abstractmethod
@@ -134,7 +135,8 @@ class PngFrameSet(FrameSet):
 
     def get_frame(self, index: int) -> Frame: # returns frame 
         filename = self.filenames[index]
-        return np.array(Image.open(filename))
+        # return np.array(Image.open(filename))
+        return cv.imread(filename, cv.IMREAD_UNCHANGED) # benchmarked to be faster than PIL
 
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds
         return self.times[index]

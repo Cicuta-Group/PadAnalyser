@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+from functools import cache
 
 from PIL import Image, ImageFont, ImageDraw
 import os
@@ -526,12 +527,11 @@ import itertools
 MIN_POINT_INDEX_DISTANCE = 10 # 10
 MAX_POINT_DISTANCE = 10 # px
 MIN_CURVATURE = 0.1 # 0.06
-SPLIT_RADIUS = 2 # px
 
 
-def closest_point_on_other_side_of_contour(point_index: int, contour: np.ndarray, index_separation_limit: int) -> tuple[int, int]:
+def closest_point_on_other_side_of_contour(point_index: int, contour: np.ndarray, index_separation_limit: int, max_radius: int) -> tuple[int, int]:
     
-    close_points_indices = points_within_radius(contour[point_index][0], contour[:,0], SPLIT_RADIUS)
+    close_points_indices = points_within_radius(contour[point_index][0], contour[:,0], max_radius)
     close_points_indices = [j for j in close_points_indices if index_separation_in_array(point_index, j, len(contour)) > index_separation_limit]
     
     if len(close_points_indices) == 0: return None
@@ -544,7 +544,8 @@ def closest_point_on_other_side_of_contour(point_index: int, contour: np.ndarray
     return i0, i1
 
 
-def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=False) -> list[np.ndarray]:
+# split_factor is a fraction of the maximum width of the contour that is used as the maximum distance between points on opposite sides of the contour when splitting
+def split_contour_by_curvature(contour: np.ndarray, split_factor: float, debug: bool=False, printing=False) -> list[np.ndarray]:
     
     if len(contour) < 2*MIN_POINT_INDEX_DISTANCE: return [contour]
 
@@ -582,8 +583,11 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=
         plt.tight_layout()
 
 
+    max_width = max_width_of_countour(contour)
+    split_dist = max_width * split_factor
+
     # find point on other side of contour that is closest -> see if they are close enough
-    closest_point_indices = [closest_point_on_other_side_of_contour(i, contour, index_separation_limit) for i in peaks_indices]
+    closest_point_indices = [closest_point_on_other_side_of_contour(i, contour, index_separation_limit, split_dist) for i in peaks_indices]
     closest_point_indices = np.array([i for i in closest_point_indices if i is not None])
 
     if len(closest_point_indices):
@@ -606,7 +610,8 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=
             closest_distance = distances[closest_index]
             index_separation = index_separation_in_array(i0, i1, len(contour))
             print('Distance split', len(ca), len(cb), closest_distance, index_separation, i0, i1, len(contour))
-        return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
+        
+        return split_contour_by_curvature(contour=ca, split_factor=split_factor, debug=debug) + split_contour_by_curvature(contour=cb, split_factor=split_factor, debug=debug)
 
     return [contour]
 
@@ -651,7 +656,7 @@ def split_contour_by_curvature(contour: np.ndarray, debug: bool=False, printing=
         ax1.plot([pa[0], pb[0]], [pa[1], pb[1]], 'go', markersize=4, label='Closest')  # Adjust 0.5 threshold as needed
     
     if printing: print('Curvature split', len(ca), len(cb), closest_distance, index_separation, pai, pbi, len(contour))
-    return split_contour_by_curvature(ca, debug) + split_contour_by_curvature(cb, debug)
+    return split_contour_by_curvature(contour=ca, split_factor=split_factor, debug=debug) + split_contour_by_curvature(contour=cb, split_factor=split_factor, debug=debug)
 
 
 
@@ -732,6 +737,10 @@ def mask_from_contour(c, padding):
 
 
 
+def max_width_of_countour(contour) -> float:
+    mask, _ = mask_from_contour(contour, padding=1) # smallest padding with complete zero-border
+    distance_img = ndimage.morphology.distance_transform_edt(mask)
+    return 2*np.max(distance_img)
 
 # Compute all properties at once to avoid re-computing values
 def ss_stats_from_contour(contour):
@@ -987,8 +996,8 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
 
         if contour_labels:
             for label, contour in zip(contour_labels, contours):
-                x,y = centroid(contour)
-                f = text_on_frame(f, label, (x+10,y+10), dinfo.font_file)
+                y,x = centroid(contour)
+                f = text_on_frame(f, label, (x+10,y+10))
 
     if dinfo.crop != None:
         (x0,x1), (y0,y1) = dinfo.crop
@@ -1041,7 +1050,7 @@ def frame_with_cs_ss_offset(frame, cs_contours, cs_ids, ss_contours, ss_ids, off
     f = norm(frame).astype(np.uint8)
     f = np.stack((f,)*3, axis=-1)
 
-    for i, c, on_border in zip(cs_ids, cs_contours, cs_on_border):
+    for i, c in zip(cs_ids, cs_contours):
         cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=8 if on_border else 2)
     for i, c in zip(ss_ids, ss_contours):
         cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=ss_stroke)
@@ -1085,17 +1094,29 @@ def plot_contour(c):
 
 ### Debug visualizations
 
+@cache
+def get_font():
+    try:
+        font = ImageFont.truetype("arial.ttf", 30)
+        print('Using font arial.ttf')
+    except OSError:
+        try:
+            font = ImageFont.truetype("Lato-Regular.ttf", 60)
+            print('Using font Lato-Regular.ttf')
+        except OSError:
+            font = ImageFont.load_default()
+            print('Using font default font')
+    
+    return font
+
 '''
 Add text to frame
 '''
-def text_on_frame(frame, text, position, font_file):
+def text_on_frame(frame, text, position):
     image = Image.fromarray(frame, 'RGB' if len(frame.shape) == 3 else None)
     canvas = ImageDraw.Draw(image)
-    try:
-        font = ImageFont.truetype(font_file, 30)
-    except OSError:
-        # font = ImageFont.truetype("Lato-Regular.ttf", 30)
-        font = ImageFont.load_default()
+    font = get_font()
+    
     canvas.text(position, f'{text}', (225, 225, 225), font=font)
     return np.asarray(image)
 
@@ -1104,15 +1125,15 @@ def translate_contours(contours, offset):
     return [contour+offset for contour in contours]
 
 
-def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times, ss_stroke, dinfo, font_file='arial.ttf', output_frames=False):
+def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, frame_labels, times, ss_stroke, dinfo, output_frames=False):
         FPS = 5
         out = cv.VideoWriter(os.path.join(dinfo.video_dir, f'{dinfo.label}.mp4'), cv.VideoWriter_fourcc(*'mp4v'), FPS, frames_ts[0].shape[::-1])
 
-        logging.debug(f'{len(frames_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(ss_contours_ts)}, {len(ss_ids_ts)}, {len(cumulative_offset_ts)}, {len(cs_on_border_ts)}, {len(times)}')
+        logging.debug(f'{len(frames_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(ss_contours_ts)}, {len(ss_ids_ts)}, {len(cumulative_offset_ts)}, {len(times)}')
 
         ### Generate frames with colony and single-cell annotation
-        for f, cs_contours, cs_ids, ss_contours, ss_ids, cumulative_offset, cs_on_border, frame_label, time \
-            in zip(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times):
+        for f, cs_contours, cs_ids, ss_contours, ss_ids, cumulative_offset, frame_label, time \
+            in zip(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, frame_labels, times):
             debug_frame = frame_with_cs_ss_offset(
                 frame=f, 
                 cs_contours=cs_contours, 
@@ -1120,7 +1141,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                 ss_contours=ss_contours, 
                 ss_ids=ss_ids,
                 offset=cumulative_offset,
-                cs_on_border=cs_on_border,
+                cs_on_border=False,
                 ss_stroke=ss_stroke,
             )
 
@@ -1128,8 +1149,8 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
             debug_label = f'{dinfo.label}, {frame_label}'
             time_label = f'{time//(60*60):02.0f}:{(time//60) % 60:02.0f}:{time % 60:02.0f}'
             time_label_full = f'time = {time_label}'
-            debug_frame = text_on_frame(debug_frame, debug_label, position=(10, 20), font_file=font_file)
-            debug_frame = text_on_frame(debug_frame, time_label_full, position=(10, 50), font_file=font_file)
+            debug_frame = text_on_frame(debug_frame, debug_label, position=(10, 20))
+            debug_frame = text_on_frame(debug_frame, time_label_full, position=(10, 50))
 
             out.write(debug_frame)
 
@@ -1145,12 +1166,12 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                     ss_contours=ss_contours, 
                     ss_ids=ss_ids,
                     offset=[0 for f in cumulative_offset],
-                    cs_on_border=cs_on_border,
+                    cs_on_border=False,
                     ss_stroke=ss_stroke,
                 )
 
                 # output slice of frame that follows colony
-                for contour, id, on_border in zip(cs_contours, cs_ids, cs_on_border):
+                for contour, id in zip(cs_contours, cs_ids):
                     if on_border: continue # skip colonies on border
                     
                     PADDING = 10 # px

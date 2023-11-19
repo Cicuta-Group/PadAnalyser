@@ -2,7 +2,7 @@
 from PadAnalyser.FrameSet import FrameSet
 from PadAnalyser.OutputConfig import OutputConfig
 import pandas as pd
-from typing import List, Type, Optional, Tuple
+from typing import List, Type, Optional, Tuple, Sequence
 
 import MKUtils
 import tqdm
@@ -23,7 +23,6 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     output_dir = output_config.output_dir
     debug_dir = output_config.debug_dir
     mask_dir = output_config.mask_dir
-    font_file = output_config.font_file
     debug_output = output_config.debug_output
 
     image_dir = MKUtils.join_and_make_path(output_dir, 'img', clear=clear_dirs)
@@ -57,9 +56,9 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     logging.info(f'Analysing {label}')
     data = MKTimeseriesAnalyzer.analyze_time_seriess(
         frame_set=frame_set,
+        species=frame_set.metadata.get('species', None),
         mask_folder=mask_dir, 
         label=label,
-        font_file=font_file,
         dinfo=dinfo,
     )
     
@@ -122,7 +121,7 @@ def load_dataframe(dataframe_file: str) -> Optional[pd.DataFrame]:
         logging.exception(f'Could not load dataframe {dataframe_file}.')
 
 
-def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
+def segment_frame_sets(frame_sets: Sequence[FrameSet], output_config: OutputConfig):
         
     # try to load from individual data-files or segment from scratch
     logging.info('Starting analysis')
@@ -136,6 +135,8 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
             logging.info(f'Loaded dataframe from cache {dataframe_file}.')
             return df
     
+    # dataframes = [segment_frame_set(fs, output_config) for fs in frame_sets]
+
     pool = Pool(processes=output_config.process_count)
     try:
         # Analyze videos to produce timeseries data vectors
@@ -158,7 +159,6 @@ def segment_frame_sets(frame_sets: List[FrameSet], output_config: OutputConfig):
     finally:
         pool.terminate()
         pool.join()
-
 
     colony_dfs, single_cell_dfs = zip(*dataframes)
 

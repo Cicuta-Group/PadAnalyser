@@ -17,6 +17,10 @@ class DInfo:
     crop: tuple[tuple[int]] = None # region to crop output images to, (x0,x1), (y0,y1)
     printing: bool = False
     
+    def replace_label(self, text):
+        cp = copy(self)
+        cp.label = text
+        return cp
 
     def append_to_label(self, text):
         cp = copy(self)

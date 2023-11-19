@@ -108,42 +108,40 @@ def bf_contour_operations(f, colony_contours, dinfo: DInfo):
 
 
 
-MIN_AREA_PIXELS = 4 # 2x2
-
 '''
 Updated segmentation with laplacian again. 
 Assume frame has been preprocessed, and is uint8
 '''
-def bf_laplacian(frame, colony_contours, dinfo: DInfo):
+def bf_laplacian(frame, colony_contours, dinfo: DInfo, sigma=1, ksize=7, threshold=-2000, split_factor=0.1, min_mask_size_filter=4) -> list[np.array]:
 
-    log = CellSegmentMods.laplacian_of_gaussian(frame, sigma=0.5, ksize=7)
-
-    m1 = log < -2000
-    m2 = CellSegmentMods.filter_to_colonies(m1, colony_contours)
-
+    log = CellSegmentMods.laplacian_of_gaussian(frame, sigma=sigma, ksize=ksize)
     MKSegmentUtils.plot_frame(log, dinfo=dinfo.append_to_label('00_log'))
+    m1 = log < threshold
     MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('01_m1'))
+    m2 = CellSegmentMods.filter_to_colonies(m1, colony_contours)
     MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m2), dinfo=dinfo.append_to_label('02_m2'))
 
     # morphological open to remove tiny objects
-    # kernel = np.ones((3,3),np.uint8)
-    # m2 = cv.morphologyEx(m2.astype(np.uint8), cv.MORPH_OPEN, kernel)
-    # MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m2), dinfo=d.append_to_label('2_m2_morph_open'))
+    # m2 = cv.morphologyEx(m2.astype(np.uint8), cv.MORPH_OPEN, CellSegmentMods.k3)
+    # MKSegmentUtils.plot_frame(MKSegmentUtils.norm(m2), dinfo=dinfo.append_to_label('02_m2_morph_open'))
 
     contours, _  = cv.findContours(m2.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('05_contours_all'), contours=contours, contour_thickness=cv.FILLED)
     
     # remove contours that are too small
-    contours = [c for c in contours if cv.contourArea(c) > MIN_AREA_PIXELS]
+    contours = [c for c in contours if cv.contourArea(c) >= min_mask_size_filter] # areas are small at this point, before dilation
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('06_contours_filtered_area'), contours=contours, contour_thickness=2)
 
-    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, debug=dinfo.live_plot, printing=dinfo.printing)]
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('10_contours_split_curvature'), contours=contours, contour_thickness=cv.FILLED)
+    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, split_factor=split_factor, debug=dinfo.live_plot, printing=dinfo.printing)]
+    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('07_contours_split_curvature'), contours=contours, contour_thickness=cv.FILLED)
 
     contours = [CellSegmentMods.dilate_contour(c) for c in contours]
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('11_contours_dilated'), contours=contours, contour_thickness=cv.FILLED)
+    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('08_contours_dilated'), contours=contours, contour_thickness=cv.FILLED)
 
     return contours
+
+
+
 
     # MKSegmentUtils.plot_frame(f, dinfo=dinfo.append_to_label('0_f'))
 
