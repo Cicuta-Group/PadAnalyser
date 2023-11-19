@@ -1050,8 +1050,8 @@ def frame_with_cs_ss_offset(frame, cs_contours, cs_ids, ss_contours, ss_ids, off
     f = norm(frame).astype(np.uint8)
     f = np.stack((f,)*3, axis=-1)
 
-    for i, c in zip(cs_ids, cs_contours):
-        cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=8 if on_border else 2)
+    for i, c, b in zip(cs_ids, cs_contours, cs_on_border):
+        cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=8 if b else 2)
     for i, c in zip(ss_ids, ss_contours):
         cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=ss_stroke)
     
@@ -1101,7 +1101,7 @@ def get_font():
         logging.info('Using font arial.ttf')
     except OSError:
         try:
-            font = ImageFont.truetype("Lato-Regular.ttf", 60)
+            font = ImageFont.truetype("Lato-Regular.ttf", 40)
             logging.info('Using font Lato-Regular.ttf')
         except OSError:
             font = ImageFont.load_default()
@@ -1141,7 +1141,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                 ss_contours=ss_contours, 
                 ss_ids=ss_ids,
                 offset=cumulative_offset,
-                cs_on_border=False,
+                cs_on_border=[False]*len(cs_contours),
                 ss_stroke=ss_stroke,
             )
 
@@ -1166,7 +1166,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                     ss_contours=ss_contours, 
                     ss_ids=ss_ids,
                     offset=[0 for f in cumulative_offset],
-                    cs_on_border=False,
+                    cs_on_border=[False]*len(cs_contours),
                     ss_stroke=ss_stroke,
                 )
 

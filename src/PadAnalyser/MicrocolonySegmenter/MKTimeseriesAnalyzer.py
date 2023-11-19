@@ -254,6 +254,7 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
         # )
 
         ss_unique_ids_ts = [list(range(len(ids))) for ids in ss_ids_ts]
+        length = len(frames_ts)
 
         MKSegmentUtils.masks_to_movie(
             frames_ts=frames_ts, 
@@ -270,7 +271,6 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
             dinfo=dinfo.append_to_label('css'),
         )
 
-        length = len(frames_ts)
 
         # Colony with laplace background
         # MKSegmentUtils.masks_to_movie(
