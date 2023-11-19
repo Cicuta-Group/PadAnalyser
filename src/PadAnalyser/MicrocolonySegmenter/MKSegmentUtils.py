@@ -1050,8 +1050,8 @@ def frame_with_cs_ss_offset(frame, cs_contours, cs_ids, ss_contours, ss_ids, off
     f = norm(frame).astype(np.uint8)
     f = np.stack((f,)*3, axis=-1)
 
-    for i, c, b in zip(cs_ids, cs_contours, cs_on_border):
-        cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=8 if b else 2)
+    for i, c, on_border in zip(cs_ids, cs_contours, cs_on_border):
+        cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=8 if on_border else 2)
     for i, c in zip(ss_ids, ss_contours):
         cv.drawContours(f, contours=[c], contourIdx=0, color=color_for_number(i), thickness=ss_stroke)
     
@@ -1125,15 +1125,16 @@ def translate_contours(contours, offset):
     return [contour+offset for contour in contours]
 
 
-def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, frame_labels, times, ss_stroke, dinfo, output_frames=False):
+def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times, ss_stroke, dinfo, output_frames=False):
         FPS = 5
         out = cv.VideoWriter(os.path.join(dinfo.video_dir, f'{dinfo.label}.mp4'), cv.VideoWriter_fourcc(*'mp4v'), FPS, frames_ts[0].shape[::-1])
 
         logging.debug(f'{len(frames_ts)}, {len(cs_contours_ts)}, {len(cs_ids_ts)}, {len(ss_contours_ts)}, {len(ss_ids_ts)}, {len(cumulative_offset_ts)}, {len(times)}')
 
         ### Generate frames with colony and single-cell annotation
-        for f, cs_contours, cs_ids, ss_contours, ss_ids, cumulative_offset, frame_label, time \
-            in zip(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, frame_labels, times):
+        for f, cs_contours, cs_ids, ss_contours, ss_ids, cumulative_offset, cs_on_border, frame_label, time \
+            in zip(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_ts, cumulative_offset_ts, cs_on_border_ts, frame_labels, times):   
+            
             debug_frame = frame_with_cs_ss_offset(
                 frame=f, 
                 cs_contours=cs_contours, 
@@ -1141,7 +1142,7 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                 ss_contours=ss_contours, 
                 ss_ids=ss_ids,
                 offset=cumulative_offset,
-                cs_on_border=[False]*len(cs_contours),
+                cs_on_border=cs_on_border,
                 ss_stroke=ss_stroke,
             )
 
@@ -1166,12 +1167,12 @@ def masks_to_movie(frames_ts, cs_contours_ts, cs_ids_ts, ss_contours_ts, ss_ids_
                     ss_contours=ss_contours, 
                     ss_ids=ss_ids,
                     offset=[0 for f in cumulative_offset],
-                    cs_on_border=[False]*len(cs_contours),
+                    cs_on_border=cs_on_border,
                     ss_stroke=ss_stroke,
                 )
 
                 # output slice of frame that follows colony
-                for contour, id in zip(cs_contours, cs_ids):
+                for contour, id, on_border in zip(cs_contours, cs_ids, cs_on_border):
                     if on_border: continue # skip colonies on border
                     
                     PADDING = 10 # px

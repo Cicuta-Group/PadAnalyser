@@ -4,9 +4,99 @@ import numpy as np
 import cv2 as cv
 import scipy.signal
 import scipy.ndimage as ndimage
+import matplotlib.pyplot as plt
+import os
+
 from skimage import segmentation
 
 MIN_EDGE_DISTANCE = 20
+
+
+
+def laplaican_profile(laplacian, c):
+    
+    # Create a mask for the current contour
+    mask = np.zeros_like(laplacian, dtype=np.uint8)
+    cv.drawContours(mask, [c], -1, 1, -1)  # -1 fills the contour
+
+    # Calculate the distance transform
+    dist_transform = cv.distanceTransform(mask, cv.DIST_L2, 3)
+
+    # Round distances to nearest integer to get integer resolution
+    int_dist_transform = np.round(dist_transform).astype(np.int32)
+
+    # Create an array to hold the sum of Laplacian values for each distance
+    max_dist = min(12, np.max(int_dist_transform))
+
+    def get_laplacian_mean(dist):
+        mask_distance = int_dist_transform == dist
+        return np.mean(laplacian * mask_distance)
+    
+    distances = range(1, max_dist + 1)
+    means = [get_laplacian_mean(d) for d in distances]
+    return means
+
+
+def filter_contours_by_laplacian_profile(laplacian, contours, dinfo, annotated_mask=None):
+
+    colony_profile = [laplaican_profile(laplacian, c) for c in contours] # list of lists of laplacian values as function of distance from edge of colony
+    contour_is_colony = [check_if_colony_profile(p) for p in colony_profile]
+    
+    if dinfo.live_plot or dinfo.file_plot:
+        plt.figure(figsize=(6,4), dpi=300)
+        if annotated_mask is None:
+            for i, (profile, is_colony) in enumerate(zip(colony_profile, contour_is_colony)):
+                plt.plot(profile, '-' if is_colony else '--', label=f'Contour {i}')
+        else:
+            colonies_are_annotated = [check_if_cell_in_colony(annotated_mask, c) for c in contours]
+            for i, (profile, is_colony, colony_is_annotated) in enumerate(zip(colony_profile, contour_is_colony, colonies_are_annotated)):
+                match = is_colony == colony_is_annotated
+                plt.plot(profile, '-' if colony_is_annotated else '--', color='black' if match else 'red', label=f'Contour {i}')
+        plt.xlabel('Distance from edge')
+        plt.ylabel('Average Laplacian value')
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        plt.title(dinfo.label)
+        if dinfo.file_plot: plt.savefig(os.path.join(dinfo.image_dir, f'{dinfo.label}.png'), bbox_inches='tight')
+        if not dinfo.live_plot: plt.close()
+
+    return [c for c, is_colony in zip(contours, contour_is_colony) if is_colony]
+
+
+def check_if_cell_in_colony(annotated_cell_mask, c_contour):
+    mask = np.zeros_like(annotated_cell_mask, dtype=np.uint8)
+    cv.drawContours(mask, [c_contour], -1, 1, -1)  # -1 fills the contour
+    return np.any(annotated_cell_mask * mask)
+
+
+def check_if_colony_profile(vector, value_threshold=0.05, difference_threshold=0.1):
+    """
+    Checks the conditions on the vector for max and min values and their indices.
+
+    :param vector: The input vector with length <= 10
+    :param value_threshold: The minimum value the max must be above
+    :param difference_threshold: The minimum difference required between max and min values
+    :return: A tuple (bool, max_value, max_index, min_value, min_index)
+             bool - True if all conditions are met, False otherwise
+             max_value - The maximum value in the vector
+             max_index - The index of the maximum value
+             min_value - The minimum value in the vector
+             min_index - The index of the minimum value
+    """
+
+    # Find the max and min values and their indices
+    max_value = max(vector)
+    min_value = min(vector)
+    max_index = vector.index(max_value)
+    min_index = vector.index(min_value)
+
+    # Check the conditions
+    return \
+        max_index < min_index and \
+        max_value > value_threshold and \
+        (max_value - min_value) > difference_threshold
+
+
+
 
 # def bf_colony_segment(f, dinfo: DInfo):
     
@@ -150,16 +240,16 @@ MIN_EDGE_DISTANCE = 20
 # def bf_via_edges(frame, dinfo, lower_threshold=30, upper_threshold=170, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_iterations=2):
     
     # # Apply Gaussian blur
-    # blurred_image = gray_image # cv2.GaussianBlur(gray_image, (3, 3), 0)
+    # blurred_image = gray_image # cv.GaussianBlur(gray_image, (3, 3), 0)
     
     # # Apply the Canny edge detector
     # edges = cv.Canny(blurred_image, lower_threshold, upper_threshold)
 
     # # # Dilate the edges to make them thicker
-    # # dilated_edges = cv2.dilate(edges, None, iterations=3)  # Increase the iterations if necessary
+    # # dilated_edges = cv.dilate(edges, None, iterations=3)  # Increase the iterations if necessary
     
     # # # Erode to bring them back to a similar width but ensure thickness
-    # # final_edges = cv2.erode(dilated_edges, None, iterations=3)  # Match the iterations used in dilation
+    # # final_edges = cv.erode(dilated_edges, None, iterations=3)  # Match the iterations used in dilation
     # final_edges = edges
 
     # return final_edges
@@ -206,26 +296,26 @@ def bf_via_edges(frame, dinfo, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_it
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('5_area_filtered'), contours=contours, contour_thickness=2)
     
     # filter colonies that have low contrast -> lysed
-    laplaican = -CellSegmentMods.laplacian_of_gaussian(frame, sigma=2, ksize=7) # laplacian of gaussian invert so bright spots are positive
-    laplaican_neg = np.maximum(laplaican, 0) 
+    laplaican = CellSegmentMods.laplacian_of_gaussian(frame, sigma=2, ksize=7) # laplacian of gaussian invert so bright spots are positive
+    contours = filter_contours_by_laplacian_profile(laplacian=laplaican, contours=contours, dinfo=dinfo.with_file_plot())
 
     # compute average value of l within each contour
-    avg_l_both = [CellSegmentMods.mean_value_in_contour(c, laplaican) for c in contours] 
-    avg_l_neg = [CellSegmentMods.mean_value_in_contour(c, laplaican_neg) for c in contours]
-    std_l_both = [CellSegmentMods.std_value_in_contour(c, laplaican) for c in contours]
+    # avg_l_both = [CellSegmentMods.mean_value_in_contour(c, laplaican) for c in contours] 
+    # avg_l_neg = [CellSegmentMods.mean_value_in_contour(c, laplaican_neg) for c in contours]
+    # std_l_both = [CellSegmentMods.std_value_in_contour(c, laplaican) for c in contours]
 
-    avg_l_both_str = [f'{l:.1f}' for l in avg_l_both]
-    avg_l_neg_str = [f'{l:.1f}' for l in avg_l_neg]
-    std_l_both_str = [f'{l:.1f}' for l in std_l_both]
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_both'), contours=contours, contour_thickness=2, contour_labels=avg_l_both_str)
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_neg'), contours=contours, contour_thickness=2, contour_labels=avg_l_neg_str)
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_std_both'), contours=contours, contour_thickness=2, contour_labels=std_l_both_str)
+    # avg_l_both_str = [f'{l:.1f}' for l in avg_l_both]
+    # avg_l_neg_str = [f'{l:.1f}' for l in avg_l_neg]
+    # std_l_both_str = [f'{l:.1f}' for l in std_l_both]
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_both'), contours=contours, contour_thickness=2, contour_labels=avg_l_both_str)
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_neg'), contours=contours, contour_thickness=2, contour_labels=avg_l_neg_str)
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_label_std_both'), contours=contours, contour_thickness=2, contour_labels=std_l_both_str)
     #  print(avg_l_both_str)
     # print(avg_l_neg_str)
 
-    contours = [c for c, l in zip(contours, avg_l_both) if min_mean_contrast < l < max_mean_contrast]
-    contours = [c for c, l in zip(contours, avg_l_neg) if min_negative_contrast < l]
-    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_filtered'), contours=contours, contour_thickness=2)
+    # contours = [c for c, l in zip(contours, avg_l_both) if min_mean_contrast < l < max_mean_contrast]
+    # contours = [c for c, l in zip(contours, avg_l_neg) if min_negative_contrast < l]
+    # MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_contrast_filtered'), contours=contours, contour_thickness=2)
  
     # m1 = 4000 <= l
     # MKSegmentUtils.plot_frame(m1, dinfo=dinfo.append_to_label('2_m1'))

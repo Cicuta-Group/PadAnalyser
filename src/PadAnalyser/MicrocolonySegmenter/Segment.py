@@ -8,6 +8,12 @@ pseu = "Pseudomonas aeruginosa"
 staph = "Staphylococcus aureus"
 ecoli = "Escherichia coli"
 
+species_map = {
+    'pseu': pseu,
+    'staph': staph,
+    'ecoli': ecoli,
+}
+
 analysis_parameters = {
     staph: {
         'sigma': 2.5,

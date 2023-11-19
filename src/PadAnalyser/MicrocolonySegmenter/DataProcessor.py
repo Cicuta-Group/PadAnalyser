@@ -59,7 +59,7 @@ def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.Dat
     id_key = 'colony_id'
     ss_ids_key = 'ss_id'
 
-    df = pd.DataFrame()
+    rows = []
     times = data['time'] # loop over 
     
     for i, (time, ids, properties_for_ids, ss_ids, ss_properties) in enumerate(zip(
@@ -83,7 +83,7 @@ def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.Dat
             interval = 60*15
             round_time = int(time//interval)*interval # bin to every 15 min - todo: update? 
 
-            row = {
+            rows.append({
                 'time': time, # seconds
                 'time_hours': time/60/60, # hours
                 'time_days': time/60/60/24, # days
@@ -98,14 +98,14 @@ def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.Dat
                 **metadata,
                 **{key: val for key, val in zip(keys, peroperties)},
                 **ss_dict,
-            }
+            })
 
-            if df.empty: df = pd.DataFrame(columns=row.keys()) # add column names first round
-            df.loc[df.shape[0]] = row.values()
+    if len(rows) == 0:
+        logging.warning(f'No rows for {label}.')
+        return None
 
-    # TODO: how to deal with experiment_map? 
-    if not df.empty: 
-        process_dataframe(df=df) # process dataframe from threading jobs - makes this multiprocessed as well
+    df = pd.DataFrame(rows) # add column names first round
+    process_dataframe(df=df) # process dataframe from threading jobs - makes this multiprocessed as well
 
     return df
 

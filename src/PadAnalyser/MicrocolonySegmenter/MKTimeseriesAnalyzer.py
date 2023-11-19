@@ -196,10 +196,10 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
     cs_centroids_ts = MKSegmentUtils.twoD_stats(MKSegmentUtils.centroid, cs_contours_ts)
     cs_centroids_ts = MKSegmentUtils.oneD_stats(np.array, cs_centroids_ts)
     
-    # EDGE_DIST = 15
-    # y_max, x_max = frame_shape
-    # bounding_rect = (EDGE_DIST, EDGE_DIST, x_max-2*EDGE_DIST, y_max-2*EDGE_DIST)
-    # cs_on_border_ts = MKSegmentUtils.twoD_stats(lambda c: MKSegmentUtils.on_border(c, bound=bounding_rect), cs_contours_ts) # if touching the edge of the frame
+    EDGE_DIST = 15
+    y_max, x_max = frame_shape
+    bounding_rect = (EDGE_DIST, EDGE_DIST, x_max-2*EDGE_DIST, y_max-2*EDGE_DIST)
+    cs_on_border_ts = MKSegmentUtils.twoD_stats(lambda c: MKSegmentUtils.on_border(c, bound=bounding_rect), cs_contours_ts) # if touching the edge of the frame
 
     ### Compute cumulative offsets for all frames and compute aligned centroids 
     frame_by_frame_offsets = [offset_for_frame_pairs(c0, c1, frame_shape) for c0, c1 in zip(cs_centroids_ts, cs_centroids_ts[1:])]
@@ -263,7 +263,7 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
             ss_contours_ts=ss_contours_ts, 
             ss_ids_ts=ss_unique_ids_ts, 
             cumulative_offset_ts=cumulative_offset_ts, 
-            # cs_on_border_ts=cs_on_border_ts, 
+            cs_on_border_ts=cs_on_border_ts, 
             frame_labels=frame_labels, 
             times=times, 
             ss_stroke=1,
@@ -295,7 +295,7 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
             ss_contours_ts=ss_contours_ts, 
             ss_ids_ts=ss_unique_ids_ts, 
             cumulative_offset_ts=cumulative_offset_ts, 
-            # cs_on_border_ts=cs_on_border_ts, 
+            cs_on_border_ts=cs_on_border_ts, 
             frame_labels=frame_labels, 
             times=times,
             ss_stroke=cv.FILLED, 
@@ -358,7 +358,7 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
         'colony_area':        MKSegmentUtils.twoD_stats(MKSegmentUtils.contour_to_area, cs_contours_ts), # µm2
         'colony_arc_length':  MKSegmentUtils.twoD_stats(MKSegmentUtils.contour_to_arc_length, cs_contours_ts), # µm
         'colony_centroid':    cs_centroids_ts, # px,px
-        # 'colony_on_border':   cs_on_border_ts,
+        'colony_on_border':   cs_on_border_ts,
         'colony_id':          cs_ids_ts, 
         'colony_ID':          id_objects['IDs'],
         'colony_name':        id_objects['names'],
