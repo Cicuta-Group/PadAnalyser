@@ -41,7 +41,7 @@ def filter_contours_by_laplacian_profile(laplacian, contours, dinfo, annotated_m
 
     colony_profile = [laplaican_profile(laplacian, c) for c in contours] # list of lists of laplacian values as function of distance from edge of colony
     contour_is_colony = [check_if_colony_profile(p) for p in colony_profile]
-    
+
     if dinfo.live_plot or dinfo.file_plot:
         plt.figure(figsize=(6,4), dpi=300)
         if annotated_mask is None:
@@ -297,7 +297,7 @@ def bf_via_edges(frame, dinfo, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_it
     
     # filter colonies that have low contrast -> lysed
     laplaican = CellSegmentMods.laplacian_of_gaussian(frame, sigma=2, ksize=7) # laplacian of gaussian invert so bright spots are positive
-    contours = filter_contours_by_laplacian_profile(laplacian=laplaican, contours=contours, dinfo=dinfo.with_file_plot())
+    contours = filter_contours_by_laplacian_profile(laplacian=laplaican, contours=contours, dinfo=dinfo)
 
     # compute average value of l within each contour
     # avg_l_both = [CellSegmentMods.mean_value_in_contour(c, laplaican) for c in contours] 
