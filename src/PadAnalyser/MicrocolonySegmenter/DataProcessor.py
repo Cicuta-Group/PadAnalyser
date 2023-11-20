@@ -498,6 +498,12 @@ def add_colony_lysis_columns(df):
 
     end_time = df['round_time_hours'].max()
 
+    # init bool columns so they do not default to float datatype
+    df['cmax_at_eop'] = pd.NA
+    df['present_at_end'] = pd.NA
+    df['present_at_start'] = pd.NA
+    df['Colony lysis'] = pd.NA
+
     for id, dfq in df.groupby(SERIES_KEY):
         
         max_index = dfq.index.max()
