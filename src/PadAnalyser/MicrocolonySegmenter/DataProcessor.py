@@ -222,8 +222,9 @@ def add_antibiotic_and_concentration_columns(df, antibiotic_keys):
     """Adds columns for antibiotic and concentration to dataframe
     Assumes only one antibiotic per pad
     """
-    df["Antibiotic"] = df[antibiotic_keys].idxmax(1).str.split(' ').str[0]
-    df["Concentration"] = df[antibiotic_keys].max(1)
+    a_keys = [k for k in antibiotic_keys if k in df.columns]
+    df["Antibiotic"] = df[a_keys].idxmax(1).str.split(' ').str[0]
+    df["Concentration"] = df[a_keys].max(1)
 
 
 ### Mathods to add columns to dataframe
