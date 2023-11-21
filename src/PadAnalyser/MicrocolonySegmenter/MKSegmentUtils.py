@@ -92,6 +92,15 @@ def to_dtype_uint8(f):
 
 
 
+### Funcitons for extracting stats
+    
+def oneD_stats(func, timeseries):
+    return [func(a) for a in timeseries]
+
+def twoD_stats(func, timeseries):
+    #return [np.apply_along_axis(func, 0, a) for a in timeseries]
+    return [[func(b) for b in a] for a in timeseries]
+
 
 ##### Kernels ####
 
@@ -777,14 +786,24 @@ SS_STATS_KEYS = [
     'ss_max_width',
     'ss_aspect_ratio',
     'ss_aspect_ratio_max_width',
-    'ss_distance_from_colony_edge',
 ]
 
-# Helper to convert list of list of touple of stats to dict of list of lists, where dict keys are right for export
+# # Helper to convert list of list of touple of stats to dict of list of lists, where dict keys are right for export
 def ss_stats_from_contours_ts(contours_ts):
-    a = twoD_stats(ss_stats_from_contour, contours_ts)
-    b = list(zip(*[(zip(*b)) for b in a])) # convert list of list of touples to touple of list of lists
-    return {k: v for k, v in zip(SS_STATS_KEYS, b)}
+    # Apply ss_stats_from_contour to each contour for each time point, resulting in a list of lists of tuples
+    stats_per_timepoint = twoD_stats(ss_stats_from_contour, contours_ts)
+
+    # Initialize a dictionary to hold the stats for each key
+    stats_dict = {key: [] for key in SS_STATS_KEYS}
+
+    # Iterate over each time point's stats
+    for timepoint_stats in stats_per_timepoint:
+        # Unzip the stats for the current time point and update the dictionary
+        for key, value in zip(SS_STATS_KEYS, zip(*timepoint_stats)):
+            stats_dict[key].append(list(value))  # Convert each tuple to a list and append it to the corresponding key
+
+    return stats_dict
+
 
 
 def id_from_frame_and_outline(f, contour):
@@ -809,15 +828,6 @@ def contour_filter(cs, min_area):
     return [cs[i] for i, included in enumerate(filter) if included]
 
 
-
-### Funcitons for extracting stats
-    
-def oneD_stats(func, timeseries):
-    return [func(a) for a in timeseries]
-
-def twoD_stats(func, timeseries):
-    #return [np.apply_along_axis(func, 0, a) for a in timeseries]
-    return [[func(b) for b in a] for a in timeseries]
 
 ### Contour analysis helpers
 
