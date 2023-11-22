@@ -11,9 +11,7 @@ import os
 import json
 from functools import partial
 from multiprocessing import Pool
-from . import MKTimeseriesAnalyzer, DataProcessor
-from .DInfo import DInfo
-from . import MKAnalysisUtils
+from . import MKTimeseriesAnalyzer, DataProcessor, DInfo, MKAnalysisUtils
 
 
 def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) -> dict:
@@ -42,7 +40,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
         except Exception as e:
             logging.exception('Could not load segmentation data from cache.')
 
-    dinfo = DInfo(
+    dinfo = DInfo.DInfo(
         label=label,
         live_plot=False,
         file_plot=debug_output,

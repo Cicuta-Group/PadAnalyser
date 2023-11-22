@@ -188,10 +188,6 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
     # plt.hist(frame.flatten(), bins=256, range=(0,256), log=True, histtype='stepfilled')
     # plt.title(l)
     
-    # Compute contours (masks with each colony filled with different integer color)
-    # cs_contours_ts = [MKSegment.bf_colony_segment(l, d.append_to_label('cs')) for l, d in zip(frames_ts, dinfos)]
-    # ss_contours_ts = [MKSegment.bf_single_cell_segment(f, cs, d.append_to_label('ss')) for f, cs, d in zip(frames_ts, cs_contours_ts, dinfos)]
-
     # Compute centroids
     cs_centroids_ts = MKSegmentUtils.twoD_stats(MKSegmentUtils.centroid, cs_contours_ts)
     cs_centroids_ts = MKSegmentUtils.oneD_stats(np.array, cs_centroids_ts)

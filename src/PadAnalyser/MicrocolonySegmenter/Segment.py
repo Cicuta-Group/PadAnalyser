@@ -16,36 +16,27 @@ species_map = {
 
 analysis_parameters = {
     staph: {
+        'label': 'staph',
         'sigma': 2.5,
         'threshold': -2000,
         'split_factor': 0.75,
-        'min_mask_size_filter': 4,
+        'min_mask_size_filter': 15,
     },
     
-    # ecoli: { # used in ecoli_1
-    #     'sigma': 2,
-    #     'threshold': -1000,
-    #     'split_factor': 0.1,
-    #     'min_mask_size_filter': 40,
-    # },
-    ecoli: { # used in ecoli_2
+    ecoli: { 
+        'label': 'ecoli',
         'sigma': 1.5,
         'threshold': -1000,
         'split_factor': 0.3,
-        'min_mask_size_filter': 40,
+        'min_mask_size_filter': 60,
     },
     
-    # pseu: { # used in pseu_1
-    #     'sigma': 1,
-    #     'threshold': -4000,
-    #     'split_factor': 0.5,
-    #     'min_mask_size_filter': 20,
-    # },
-    pseu: { # used in pseu_2
+    pseu: { 
+        'label': 'pseu',
         'sigma': 1,
         'threshold': -3000,
-        'split_factor': 0.5,
-        'min_mask_size_filter': 20,
+        'split_factor': 0.65,
+        'min_mask_size_filter': 30,
     },
 }
 

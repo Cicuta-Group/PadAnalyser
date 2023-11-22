@@ -2,6 +2,9 @@
 import dataclasses
 from copy import copy
 
+import matplotlib.pyplot as plt
+import os
+
 '''
 Class to concicely pass information about how debug should be handled.
 Make lots of local copies for different subcontexts.
@@ -43,4 +46,10 @@ class DInfo:
         cp.file_plot = False
         cp.video = False
         return cp
+
+    def tidy_and_save_plot(self, name):
+        if self.file_plot:
+            plt.savefig(os.path.join(self.image_dir, f'{name}.png'), bbox_inches='tight', dpi=300)
+        if not self.live_plot:
+            plt.close()
 

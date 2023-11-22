@@ -298,6 +298,7 @@ def bf_via_edges(frame, dinfo, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_it
     # filter colonies that have low contrast -> lysed
     laplaican = CellSegmentMods.laplacian_of_gaussian(frame, sigma=2, ksize=7) # laplacian of gaussian invert so bright spots are positive
     contours = filter_contours_by_laplacian_profile(laplacian=laplaican, contours=contours, dinfo=dinfo)
+    MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_profile_filtered'), contours=contours, contour_thickness=2)
 
     # compute average value of l within each contour
     # avg_l_both = [CellSegmentMods.mean_value_in_contour(c, laplaican) for c in contours] 
