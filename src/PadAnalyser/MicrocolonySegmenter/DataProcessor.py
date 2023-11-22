@@ -114,7 +114,7 @@ def dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.Dat
 def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dict) -> pd.DataFrame:
     
     multi_keys = ['ss_area', 'ss_aspect_ratio', 'ss_aspect_ratio_max_width', 'ss_distance_from_colony_edge', 'ss_centroid', 'ss_dist_sums', 'ss_length', 'ss_max_width', 'ss_width']
-    single_keys = ['time', 'ss_count', ]
+    single_keys = ['time', 'ss_count']
 
     # print('Ignored keys: ', [key for key in data.keys() if key not in multi_keys + single_keys])
 
@@ -124,7 +124,13 @@ def single_cell_dataframe_from_data_series(data: dict, label: str, metadata: dic
     dfs = []
 
     for time_index, (multi_dicts, single_dicts) in enumerate(zip(time_list_of_multi_dicts, time_list_of_single_dicts)):
-        df_multi = pd.DataFrame(multi_dicts)
+        try:
+            df_multi = pd.DataFrame(multi_dicts)
+        except ValueError:
+            print(multi_dicts)
+            logging.error(f'Could not create dataframe from {multi_dicts}.')
+            # continue
+            raise ValueError(f'Could not create dataframe from {multi_dicts}.')
         
         for k, v in {**single_dicts, **metadata, 'label': label}.items():
             df_multi[k] = v
@@ -327,6 +333,8 @@ def add_growth_rate_time_series_columns(df, fit_to_key):
             df.loc[dfg.index, f'{fit_to_key}_growth_rate_var'] = q.dfvar
         except Exception as e:
             logging.debug(f'Failed to fit growth rate {len(ts)=} {len(prevelance)=} {e}')
+            df.loc[dfg.index, f'{fit_to_key}_growth_rate'] = np.nan
+            df.loc[dfg.index, f'{fit_to_key}_growth_rate_var'] = np.nan
 
         # # plot results
         # plt.figure()
