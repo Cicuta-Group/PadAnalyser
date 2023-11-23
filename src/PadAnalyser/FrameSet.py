@@ -136,9 +136,6 @@ class PngFrameSet(FrameSet):
     def get_frame(self, index: int) -> Frame: # returns frame 
         filename = self.filenames[index]
         frame = cv.imread(filename, cv.IMREAD_UNCHANGED) # benchmarked to be faster than PIL
-        if np.isnan(frame).any():
-            os.remove(filename) # delete frame
-            raise Exception(f'Frame {filename} contains NaNs. Deleting.')
         return frame
 
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds

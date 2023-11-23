@@ -359,7 +359,13 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
 
 
 def clip(frame, percentile=99.999): 
-    lower_percentile, upper_percentile = np.percentile(frame, q=[100-percentile, percentile])    
+    try:
+        lower_percentile, upper_percentile = np.percentile(frame, q=[100-percentile, percentile])    
+    except Exception as e:
+        logging.error(f'percentile calculation exception {e}, {percentile}, {frame}')
+        print(f'percentile calculation exception {e}, {percentile}, {frame}')
+        raise Ecxeption(f'percentile calculation exception {e}, {percentile}, {frame}')
+        
     return np.clip(frame, lower_percentile, upper_percentile)
 
 
