@@ -3,6 +3,7 @@ from typing import List, Union
 from PIL import Image
 import numpy as np
 import cv2 as cv
+import os
 
 import dataclasses
 from abc import ABC, abstractmethod
@@ -136,6 +137,11 @@ class PngFrameSet(FrameSet):
     def get_frame(self, index: int) -> Frame: # returns frame 
         filename = self.filenames[index]
         frame = cv.imread(filename, cv.IMREAD_UNCHANGED) # benchmarked to be faster than PIL
+        if frame is None:
+            if os.file.exists(filename):
+                os.remove(filename)
+                raise Exception(f'Could not read frame from file {filename}. File deleted.')
+            raise Exception(f'Could not read frame from file {filename}. Could not find file to delete it.')
         return frame
 
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds
