@@ -138,7 +138,7 @@ class PngFrameSet(FrameSet):
         filename = self.filenames[index]
         frame = cv.imread(filename, cv.IMREAD_UNCHANGED) # benchmarked to be faster than PIL
         if frame is None:
-            if os.file.exists(filename):
+            if os.path.exists(filename):
                 os.remove(filename)
                 raise Exception(f'Could not read frame from file {filename}. File deleted.')
             raise Exception(f'Could not read frame from file {filename}. Could not find file to delete it.')
