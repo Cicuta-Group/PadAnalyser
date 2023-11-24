@@ -181,7 +181,7 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
     dinfos = [dinfo.replace_label(str(i)) for i in frame_set.get_frame_labels()]
 
     raw_frames_ts, times = zip(*frame_set[:])
-    frames_ts, cs_contours_ts, ss_contours_ts = zip(*[Segment.segment_frame(f=f, d=d, species=species) for f, d in zip(raw_frames_ts, dinfos)])
+    frames_ts, cs_contours_ts, ss_contours_ts = zip(*[Segment.segment_frame(frame=f, d=d, species=species) for f, d in zip(raw_frames_ts, dinfos)])
     frame_shape = frames_ts[0].shape
 
     # plt.figure(figsize=(6,4), dpi=300)

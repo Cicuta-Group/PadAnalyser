@@ -49,14 +49,17 @@ def get_params_for_species(species: Optional[str]) -> dict:
     return analysis_parameters[species]
 
 
-def segment_frame(f: np.ndarray, d: DInfo.DInfo, params: Optional[dict] = None, species: Optional[str] = None):
+def segment_frame(frame: np.ndarray, d: DInfo.DInfo, params: Optional[dict] = None, species: Optional[str] = None):
     
     if params is None: params = get_params_for_species(species)
     logging.info(f'Segmenting frame {d.label} as species {species} with params {params}')
 
-    frame = ZStack.clip(f)
-    frame = cv.GaussianBlur(frame, (3, 3), 0)
-    frame = MKSegmentUtils.norm(frame)
+    # check if frame has allready been normalized
+    if frame.dtype != np.uint8 or np.min(frame) != 0 or np.max(frame) != 255:
+        logging.warning(f'Frame {d.label} is not 8 bit normalized, normalizing now. Pixels range from {np.min(frame)} to {np.max(frame)}, dtype={frame.dtype}')
+        frame = ZStack.clip(frame)
+        frame = cv.GaussianBlur(frame, (3, 3), 0)
+        frame = MKSegmentUtils.norm(frame)
 
     c_contours = ColonySegment.bf_via_edges(
         frame, 

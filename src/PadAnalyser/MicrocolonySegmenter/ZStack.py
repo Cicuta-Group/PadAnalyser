@@ -9,7 +9,7 @@ from . import MKSegmentUtils
 
 import skimage.transform
 import skimage.measure
-
+import logging
 
 # def z_stack_projection(stack, dinfo: DInfo):
 #     fs = stack
@@ -81,37 +81,106 @@ def laplacian(frame_raw):
 
     return laplacian_frame
 
-'''
-Contounous projection based on low pass filter of laplacian areas. 
-Simplest approach, and used for initial datasets. 
-'''
-def z_stack_projection_laplace(stack, dinfo):
+
+
+import scipy.signal
+
+
+WINDOW_SIZE = 200 # 200 is close to GCD of 3208x2200, 240 is gcd of pixel counts (1920x1200)
+BLUR_SIZE = 51
+
+class MemoizeKernelWindow:
+    def __init__(self, f):
+        self.f = f
+        self.memo = {}
+    def __call__(self, xs, ys, shape):
+        key = (xs.start, xs.stop, ys.start, ys.stop, shape)
+        if not key in self.memo:
+            self.memo[key] = self.f(xs, ys, shape)
+        return self.memo[key]
+
+@MemoizeKernelWindow
+def window_kernel(xs, ys, shape):
+    k = np.zeros(shape).astype(np.uint16)
+    k[ys,xs] = 255
+    # k = cv.GaussianBlur(k, (51, 51), 0)
+    k = cv.blur(k, (BLUR_SIZE, BLUR_SIZE))
+    k = k.astype(np.float32)/255.0
+    # plot_frame(k.astype(np.uint16), 'kernel', plot=xs.start == 0 and ys.start == 0)
+    return k
+
+
+WINDOW_SIZE_TILES = 100
+score_kernel = np.array([ # put weight on neigbouring tiles as well, to improve continuity
+    [1,1,1],
+    [1,2,1],
+    [1,1,1],
+]) 
+
+# Better method when backlash for stage motion in z-stack is too large, making in-focus peaks too wide.
+def project_with_tiles(stack, dinfo):
+    
     fs = stack
+    fs = [cv.GaussianBlur(f, (7, 7), 0) for f in fs] # blur, kernel size about feature size
+    fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
+    fs_abs = [np.square(f) for f in fs] # square to make all positive and emphasize large values over larger area with smaller amplitude
+    
+    for f in fs_abs:
+        print(np.max(f), np.min(f))
 
-    # Compute gradients
-    fs = [laplacian(f) for f in fs]
-    
-    # Only keep negative gradients (center of cells)
-    fs = [np.maximum(-f, 0) for f in fs]
-    
-    # Compute focus score for each pixel by downsampling
-    KERNEL_SIZE = 101
-    fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
+    # size-representative frame
+    height, width = stack[0].shape
+    x_splits = list(range(0, width+1, int(WINDOW_SIZE_TILES)))
+    y_splits = list(range(0, height+1, int(WINDOW_SIZE_TILES)))
 
-    # Find index with highest score in stack for each pixel
-    f_max = np.argmax(np.array(fs), 0)
-    f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
-    
-    # Check histogram and invert if needed
-    # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
-    # peak = bins[np.argmax(hist)]
-    # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
-    #     f_focus = 255 - f_focus
-    
-    MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
-    MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
+    x_ranges = [slice(a,b) for a,b in zip(x_splits, x_splits[1:])]
+    y_ranges = [slice(a,b) for a,b in zip(y_splits, y_splits[1:])]
 
-    return f_focus
+    weighted_scores = [np.array([[np.mean(l[ys,xs]) for ys in y_ranges] for xs in x_ranges]) for l in fs_abs]
+    weighted_scores = [scipy.signal.convolve2d(d, score_kernel, mode='same') for d in weighted_scores]
+
+    f = np.zeros_like(stack[0]).astype(np.float32) # new frame to build and return
+    for i, xs in enumerate(x_ranges):
+        for j, ys in enumerate(y_ranges):
+            scores = [l[i,j] for l in weighted_scores]
+            focus_index = scores.index(max(scores))
+            
+            f = f + window_kernel(xs, ys, f.shape) * stack[focus_index] # add this window to return frame
+
+    return f.astype(stack[0].dtype)
+
+
+# '''
+# Contounous projection based on low pass filter of laplacian areas. 
+# Simplest approach, and used for initial datasets. 
+# '''
+# def z_stack_projection_laplace(stack, dinfo):
+#     fs = stack
+
+#     # Compute gradients
+#     fs = [laplacian(f) for f in fs]
+    
+#     # Only keep negative gradients (center of cells)
+#     fs = [np.maximum(-f, 0) for f in fs]
+    
+#     # Compute focus score for each pixel by downsampling
+#     KERNEL_SIZE = 101
+#     fs = [skimage.transform.resize(skimage.measure.block_reduce(f, (KERNEL_SIZE, KERNEL_SIZE), np.mean), (f.shape)) for f in fs]
+
+#     # Find index with highest score in stack for each pixel
+#     f_max = np.argmax(np.array(fs), 0)
+#     f_focus = np.take_along_axis(np.array(stack), f_max[None, ...], axis=0)[0]
+    
+#     # Check histogram and invert if needed
+#     # hist, bins = np.histogram(f_focus, bins=256, range=(0, 256))
+#     # peak = bins[np.argmax(hist)]
+#     # if peak < 128:  # Assuming 8-bit images with values between 0 and 255
+#     #     f_focus = 255 - f_focus
+    
+#     MKSegmentUtils.plot_frame(f_max, dinfo=dinfo.append_to_label('z_stack_indices'))
+#     MKSegmentUtils.plot_frame(f_focus, dinfo=dinfo.append_to_label('z_stack_best'))
+
+#     return f_focus
 
 
 # # Contounous projection based on low pass filter of laplacian areas. 
@@ -226,16 +295,45 @@ def create_pixel_mask(frame_shape, plane_coefficients):
     return mask
 
 
-MIN_PROMINANE = 0.2
+MIN_PROMINENCE = 0.2
 
 def find_peaks_including_boundries(values):
 
-    peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
-    # Including boundaries in the peaks if they are maxima
-    if values[0] > values[1] + MIN_PROMINANE:
-        peaks = np.insert(peaks, 0, 0)
-    if values[-1] > values[-2] + MIN_PROMINANE:
-        peaks = np.append(peaks, len(values) - 1)
+    # Calculate the first and second derivatives
+    first_derivative = np.gradient(values,)
+    second_derivative = np.gradient(first_derivative)
+
+    # Find where the second derivative is smallest - these could be inflection points
+    # In a perfect scenario, we would find zero-crossings, but due to noise and sampling,
+    # we look for local minima instead. We use 'find_peaks' on the negative second derivative
+    # because we are interested in the minima.
+    inflection_points, _ = find_peaks(second_derivative, prominence=MIN_PROMINENCE)
+
+    # Optional: Filter these points to find the ones that correspond to peaks
+    # This is a heuristic and may need adjustment based on the nature of your data
+    # For example, you might check that the first derivative is close to zero
+    # (i.e., the slope of the signal is flat, which is often the case at peak tops)
+    peaks = inflection_points[first_derivative[inflection_points] < 0]
+    print(list(values))
+    return peaks
+
+    # # Find local peaks with your desired prominence
+    # peaks, _ = find_peaks(values, prominence=MIN_PROMINENCE)
+
+    
+    # # peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
+    # # Including boundaries in the peaks if they are maxima
+    # if values[0] > values[1] + MIN_PROMINENCE:
+    #     peaks = np.insert(peaks, 0, 0)
+    # if values[-1] > values[-2] + MIN_PROMINENCE:
+    #     peaks = np.append(peaks, len(values) - 1)
+    
+    # Find the global maximum's index
+    # global_max_index = np.argmax(values)
+    # peaks = np.append(peaks, global_max_index) # ok if allready present
+    
+    # # Sort the indices to maintain the right order
+    # peaks = np.sort(peaks)
 
     return peaks
 
@@ -255,7 +353,7 @@ def compute_preferred_index(z_stack, dinfo):
 
     means = np.mean(z_stack, axis=(1, 2))
 
-    if np.max(means) - np.min(means) < MIN_PROMINANE:
+    if np.max(means) - np.min(means) < MIN_PROMINENCE:
         return None, means, None
 
     # Step 2: Find local maxima along z
@@ -343,7 +441,7 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
         try:
             plane_coefficients = determine_global_tilt(center_positions, z_scores)
         except ValueError:
-            return z_stack_projection_laplace(zstack, dinfo=dinfo), None
+            return project_with_tiles(zstack, dinfo=dinfo), None # fallback 
 
     mask = create_pixel_mask(ls.shape, plane_coefficients)
 
@@ -358,13 +456,13 @@ def project_to_plane(zstack: List[np.ndarray], dinfo, plane_coefficients=None):
     return f_best, plane_coefficients
 
 
-def clip(frame, percentile=99.999): 
+def clip(frame, percentile=99.999): # truncate about 64 pixels for 99.999 percentile
     try:
         lower_percentile, upper_percentile = np.percentile(frame, q=[100-percentile, percentile])    
     except Exception as e:
         logging.error(f'percentile calculation exception {e}, {percentile}, {frame}')
         print(f'percentile calculation exception {e}, {percentile}, {frame}')
-        raise Ecxeption(f'percentile calculation exception {e}, {percentile}, {frame}')
+        raise Exception(f'percentile calculation exception {e}, {percentile}, {frame}')
         
     return np.clip(frame, lower_percentile, upper_percentile)
 
@@ -373,13 +471,14 @@ def clip(frame, percentile=99.999):
 Master method that takes a stack of frames and returns a single in-focus frame.
 Tries to find best-fit plane, and if it fails, falls back to laplacian projection.
 '''
-def flatten_stack(stack, dinfo):
+def flatten_stack(stack, dinfo, large_backlash=False):
 
     plane_coefficients = None
     
     # Check if stack is already flattened, otherwise compute projection
     if isinstance(stack, np.ndarray): frame_raw = stack
     elif len(stack) == 1: frame_raw = stack[0]
+    elif large_backlash: frame_raw, plane_coefficients = project_with_tiles(stack, dinfo=dinfo), None # compute laplacian from normalized frame
     else: frame_raw, plane_coefficients = project_to_plane(stack, dinfo=dinfo) # compute laplacian from normalized frame
 
     if frame_raw.dtype == np.uint8: frame_raw = frame_raw.astype(np.uint16)*255
