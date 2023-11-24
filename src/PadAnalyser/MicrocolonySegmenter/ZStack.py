@@ -89,17 +89,6 @@ import scipy.signal
 WINDOW_SIZE = 200 # 200 is close to GCD of 3208x2200, 240 is gcd of pixel counts (1920x1200)
 BLUR_SIZE = 51
 
-class MemoizeKernelWindow:
-    def __init__(self, f):
-        self.f = f
-        self.memo = {}
-    def __call__(self, xs, ys, shape):
-        key = (xs.start, xs.stop, ys.start, ys.stop, shape)
-        if not key in self.memo:
-            self.memo[key] = self.f(xs, ys, shape)
-        return self.memo[key]
-
-@MemoizeKernelWindow
 def window_kernel(xs, ys, shape):
     k = np.zeros(shape).astype(np.uint16)
     k[ys,xs] = 255
