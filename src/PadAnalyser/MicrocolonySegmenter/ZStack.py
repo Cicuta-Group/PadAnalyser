@@ -110,7 +110,7 @@ def window_kernel(xs, ys, shape):
     return k
 
 
-WINDOW_SIZE_TILES = 100
+WINDOW_SIZE_TILES = 200
 score_kernel = np.array([ # put weight on neigbouring tiles as well, to improve continuity
     [1,1,1],
     [1,2,1],
@@ -124,9 +124,6 @@ def project_with_tiles(stack, dinfo):
     fs = [cv.GaussianBlur(f, (7, 7), 0) for f in fs] # blur, kernel size about feature size
     fs = [cv.Laplacian(f, cv.CV_32S, ksize=7) for f in fs] # laplacian
     fs_abs = [np.square(f) for f in fs] # square to make all positive and emphasize large values over larger area with smaller amplitude
-    
-    for f in fs_abs:
-        print(np.max(f), np.min(f))
 
     # size-representative frame
     height, width = stack[0].shape
@@ -299,42 +296,14 @@ MIN_PROMINENCE = 0.2
 
 def find_peaks_including_boundries(values):
 
-    # Calculate the first and second derivatives
-    first_derivative = np.gradient(values,)
-    second_derivative = np.gradient(first_derivative)
-
-    # Find where the second derivative is smallest - these could be inflection points
-    # In a perfect scenario, we would find zero-crossings, but due to noise and sampling,
-    # we look for local minima instead. We use 'find_peaks' on the negative second derivative
-    # because we are interested in the minima.
-    inflection_points, _ = find_peaks(second_derivative, prominence=MIN_PROMINENCE)
-
-    # Optional: Filter these points to find the ones that correspond to peaks
-    # This is a heuristic and may need adjustment based on the nature of your data
-    # For example, you might check that the first derivative is close to zero
-    # (i.e., the slope of the signal is flat, which is often the case at peak tops)
-    peaks = inflection_points[first_derivative[inflection_points] < 0]
-    print(list(values))
-    return peaks
-
-    # # Find local peaks with your desired prominence
-    # peaks, _ = find_peaks(values, prominence=MIN_PROMINENCE)
-
+    peaks, _ = find_peaks(values, prominence=MIN_PROMINENCE)
     
-    # # peaks, _ = find_peaks(values, prominence=MIN_PROMINANE)
-    # # Including boundaries in the peaks if they are maxima
-    # if values[0] > values[1] + MIN_PROMINENCE:
-    #     peaks = np.insert(peaks, 0, 0)
-    # if values[-1] > values[-2] + MIN_PROMINENCE:
-    #     peaks = np.append(peaks, len(values) - 1)
+    # Including boundaries in the peaks if they are maxima
+    if values[0] > values[1] + MIN_PROMINENCE:
+        peaks = np.insert(peaks, 0, 0)
+    if values[-1] > values[-2] + MIN_PROMINENCE:
+        peaks = np.append(peaks, len(values) - 1)
     
-    # Find the global maximum's index
-    # global_max_index = np.argmax(values)
-    # peaks = np.append(peaks, global_max_index) # ok if allready present
-    
-    # # Sort the indices to maintain the right order
-    # peaks = np.sort(peaks)
-
     return peaks
 
 
