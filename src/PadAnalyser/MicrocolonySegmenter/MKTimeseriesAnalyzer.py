@@ -184,6 +184,14 @@ def analyze_time_seriess(frame_set: FrameSet, species: str, mask_folder: str, la
     frames_ts, cs_contours_ts, ss_contours_ts = zip(*[Segment.segment_frame(frame=f, d=d, species=species) for f, d in zip(raw_frames_ts, dinfos)])
     frame_shape = frames_ts[0].shape
 
+    # output single cell mask labeled images to folder
+    if mask_folder != None:
+        for label, ss_contours in zip(frame_set.get_frame_labels(), ss_contours_ts):
+            f = np.zeros(frame_shape, dtype=np.uint16)
+            for i, _ in enumerate(ss_contours):
+                cv.drawContours(f, contours=ss_contours, contourIdx=i, color=i+1, thickness=cv.FILLED)
+            cv.imwrite(os.path.join(mask_folder, f'{label}.png'), f)
+    
     # plt.figure(figsize=(6,4), dpi=300)
     # plt.hist(frame.flatten(), bins=256, range=(0,256), log=True, histtype='stepfilled')
     # plt.title(l)

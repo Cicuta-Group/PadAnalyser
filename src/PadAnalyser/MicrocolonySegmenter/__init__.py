@@ -55,7 +55,7 @@ def segment_frame_set_to_dict(frame_set: FrameSet, output_config: OutputConfig) 
     data = MKTimeseriesAnalyzer.analyze_time_seriess(
         frame_set=frame_set,
         species=frame_set.metadata.get('species', None),
-        mask_folder=mask_dir, 
+        mask_folder=mask_dir,
         label=label,
         dinfo=dinfo,
     )

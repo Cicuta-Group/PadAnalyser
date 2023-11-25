@@ -55,7 +55,7 @@ def segment_frame(frame: np.ndarray, d: DInfo.DInfo, params: Optional[dict] = No
     logging.info(f'Segmenting frame {d.label} as species {species} with params {params}')
 
     # check if frame has allready been normalized
-    if frame.dtype != np.uint8 or np.min(frame) != 0 or np.max(frame) != 255:
+    if frame.dtype != np.uint8 or np.min(frame) != 0 or np.max(frame) < 254:
         logging.warning(f'Frame {d.label} is not 8 bit normalized, normalizing now. Pixels range from {np.min(frame)} to {np.max(frame)}, dtype={frame.dtype}')
         frame = ZStack.clip(frame)
         frame = cv.GaussianBlur(frame, (3, 3), 0)
