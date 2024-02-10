@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/663112132.svg)](https://zenodo.org/doi/10.5281/zenodo.10645343)
+
 # PadAnalyser
 Repository with code for segmenting and plotting single-cell microscopy data from agar pads. 
 
