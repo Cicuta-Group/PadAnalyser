@@ -372,7 +372,6 @@ def split_contour_by_curvature(contour: np.ndarray, split_factor: float, min_are
 
     make_plot = dinfo.live_plot or dinfo.file_plot
 
-
     if make_plot:
         _, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), dpi=300)
         plt.sca(ax1) # for plot in compute_curvature()
@@ -591,19 +590,19 @@ def ss_stats_from_contour(contour):
     
     A,E = area, dist_sum
     mean_width_simple = 4*E/A
-    mean_width_roots = np.roots([np.pi/48/A, 0, -1/4, E/A])
-    mean_width = abs(min(mean_width_roots, key=lambda x: abs(x-mean_width_simple))) # pick root closest to simple solution
+    # mean_width_roots = np.roots([np.pi/48/A, 0, -1/4, E/A])
+    # mean_width = abs(min(mean_width_roots, key=lambda x: abs(x-mean_width_simple))) # pick root closest to simple solution
     # print(mean_width_roots, mean_width_simple, mean_width)
 
-    length = area/mean_width + mean_width*(1-np.pi/4)
+    length = area/mean_width_simple + mean_width_simple*(1-np.pi/4)
     
     return (
         area * UM_PER_PIXEL**2,
         dist_sum * UM_PER_PIXEL**3,
         length * UM_PER_PIXEL,
-        mean_width * UM_PER_PIXEL,
+        mean_width_simple * UM_PER_PIXEL,
         max_width * UM_PER_PIXEL, 
-        length/mean_width,
+        length/mean_width_simple,
         length/max_width,
     )
 

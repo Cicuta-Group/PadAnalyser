@@ -132,7 +132,7 @@ def bf_laplacian(frame, colony_contours, dinfo: DInfo, sigma=1, ksize=7, thresho
     contours = [c for c in contours if cv.contourArea(c) >= min_mask_size_filter] # areas are small at this point, before dilation
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('06_contours_filtered_area'), contours=contours, contour_thickness=cv.FILLED)
 
-    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, split_factor=split_factor, min_area=min_mask_size_filter, dinfo=dinfo)]
+    contours = [c_out for c_in in contours for c_out in MKSegmentUtils.split_contour_by_curvature(c_in, split_factor=split_factor, min_area=min_mask_size_filter, dinfo=dinfo.with_file_plot(False))]
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('07_contours_split_curvature'), contours=contours, contour_thickness=cv.FILLED)
 
     contours = [CellSegmentMods.dilate_contour(c) for c in contours]

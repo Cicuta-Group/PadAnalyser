@@ -93,7 +93,7 @@ class FrameSet(ABC):
 
 class TiffFrameSet(FrameSet):
 
-    def __init__(self, file_paths: List[List[str]], times_in_seconds: List[int], frame_labels: List[str], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
+    def __init__(self, file_paths: List[str], times_in_seconds: List[int], frame_labels: List[str], **kwargs): # list of frames at different times. If using z-stacks, times is a list of lists. Outer list is timepoints, inner list is z-stacks.
         if len(file_paths) != len(times_in_seconds):
             raise Exception(f"Number of files {len(file_paths)} different from number of times {len(times_in_seconds)}")
         
@@ -104,7 +104,7 @@ class TiffFrameSet(FrameSet):
 
 
     def get_frame(self, index: int) -> Frame: # -> Tuple[Frame, int]: # returns frame and time in seconds
-        return [np.array(Image.open(f)) for f in self.filenames[index]]
+        return np.array(Image.open(self.filenames[index]))
     
     def get_time(self, index: int) -> int: # returns list of timestamps in seconds
         return self.times[index]

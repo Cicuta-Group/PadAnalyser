@@ -53,6 +53,7 @@ def segment_frame(frame: np.ndarray, d: DInfo.DInfo, params: Optional[dict] = No
     
     if params is None: params = get_params_for_species(species)
     logging.info(f'Segmenting frame {d.label} as species {species} with params {params}')
+    print(f'Segmenting frame {d.label} as species {species} with params {params}')
 
     # check if frame has allready been normalized
     if frame.dtype != np.uint8 or np.min(frame) != 0 or np.max(frame) < 254:

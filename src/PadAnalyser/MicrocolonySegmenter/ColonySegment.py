@@ -12,7 +12,6 @@ from skimage import segmentation
 MIN_EDGE_DISTANCE = 20
 
 
-
 def laplaican_profile(laplacian, c):
     
     # Create a mask for the current contour
@@ -56,7 +55,8 @@ def filter_contours_by_laplacian_profile(laplacian, contours, dinfo, annotated_m
         plt.ylabel('Average Laplacian value')
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.title(dinfo.label)
-        if dinfo.file_plot: plt.savefig(os.path.join(dinfo.image_dir, f'{dinfo.label}.png'), bbox_inches='tight')
+        plt.rcParams['svg.fonttype'] = 'none'
+        if dinfo.file_plot: plt.savefig(os.path.join(dinfo.image_dir, f'{dinfo.label}.svg'), bbox_inches='tight')
         if not dinfo.live_plot: plt.close()
 
     return [c for c, is_colony in zip(contours, contour_is_colony) if is_colony]
@@ -94,7 +94,7 @@ def check_if_colony_profile(vector, value_threshold=0.05, difference_threshold=0
         max_index < min_index and \
         max_value > value_threshold and \
         (max_value - min_value) > difference_threshold
-
+    
 
 
 
@@ -298,6 +298,7 @@ def bf_via_edges(frame, dinfo, min_area=MKSegmentUtils.MIN_COLONY_AREA, close_it
     # filter colonies that have low contrast -> lysed
     laplaican = CellSegmentMods.laplacian_of_gaussian(frame, sigma=2, ksize=7) # laplacian of gaussian invert so bright spots are positive
     contours = filter_contours_by_laplacian_profile(laplacian=laplaican, contours=contours, dinfo=dinfo)
+    
     MKSegmentUtils.plot_frame(frame, dinfo=dinfo.append_to_label('6_profile_filtered'), contours=contours, contour_thickness=2)
 
     # compute average value of l within each contour
