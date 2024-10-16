@@ -959,14 +959,14 @@ def plot_contour(c):
 def get_font():
     try:
         font = ImageFont.truetype("arial.ttf", 30)
-        logging.info('Using font arial.ttf')
+        logging.debug('Using font arial.ttf')
     except OSError:
         try:
             font = ImageFont.truetype("Lato-Regular.ttf", 40)
-            logging.info('Using font Lato-Regular.ttf')
+            logging.debug('Using font Lato-Regular.ttf')
         except OSError:
             font = ImageFont.load_default()
-            logging.info('Using font default font')
+            logging.debug('Using font default font')
     
     return font
 
