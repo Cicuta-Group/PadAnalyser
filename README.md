@@ -9,7 +9,7 @@ Repository with code for segmenting and plotting single-cell microscopy data fro
 - If you want to edit the source code, you can clone the repository and install it in editable mode: `pip install -e .`. The package can then be accessed from any directory.
 
 ## Examples
-See [github.com/Cicuta-Group/MAP-imaging](https://github.com/Cicuta-Group/MAP-imaging) for examples of how to use this package, including sample images so that you can easily get started.  
+See the `analysis` folder in [github.com/Cicuta-Group/MAP-imaging](https://github.com/Cicuta-Group/MAP-imaging) for examples of how to use this package, including sample images so that you can easily get started.  
 
 ## Usage
 1. Make your FrameSet - this is an object that contains all information required to process one field of view on a pad, including time-series images, timestamps, and a dictionary with metadata. Labs store theur data in different ways, so you can subclass the FrameSet abstract class to support your particular format. If your images are Tiffs, we have included a TiffFrameSet subclass you can use. 
