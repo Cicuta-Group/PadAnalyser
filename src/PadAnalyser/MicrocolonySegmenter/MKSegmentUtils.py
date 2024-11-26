@@ -28,12 +28,12 @@ MIN_POINT_SEPARATION = 4 # in um
 Normalize frame between 0 and 255
 '''
 def normanlize_uint16(f):
-    if f.dtype == np.bool8:
+    if f.dtype == np.bool_:
         f = np.uint8(f)
     return cv.normalize(f, None, alpha=0, beta=65535, norm_type=cv.NORM_MINMAX).astype(np.uint16)
 
 def norm(f):
-    if f.dtype == np.bool8:
+    if f.dtype == np.bool_:
         f = np.uint8(f)
     return cv.normalize(f, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX).astype(np.uint8)
     
@@ -87,7 +87,7 @@ def to_dtype_uint8(f):
 #     if f.dtype == np.uint16:
 #         minimum = minimum // 256
 
-#     if f.dtype == np.bool8:
+#     if f.dtype == np.bool_:
 #         f = np.uint8(f)
 #     return cv.normalize(f, None, alpha=minimum, beta=255, norm_type=cv.NORM_MINMAX).astype(np.uint8)
 
@@ -877,6 +877,54 @@ def plot_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, co
         im = Image.fromarray(f)
         im.save(os.path.join(dinfo.image_dir, dinfo.label + '.png'))
     
+
+
+
+def plot_transparent_frame(f, dinfo, contours=None, new_figure=True, contour_thickness=1, contour_color_function=None, contour_labels=None):
+    
+    if not dinfo.live_plot and not dinfo.file_plot: # for performance
+        return 
+    
+    # Ensure `f` is an 8-bit grayscale image
+    f = to_dtype_uint8(f)
+    
+    # Create an RGBA image with alpha channel set to 1
+    if contours:
+        f = np.stack((f,)*3, axis=-1)  # Convert to RGB
+        alpha_channel = np.ones_like(f[..., 0], dtype=np.uint8) * 0  # Full alpha channel
+        f = np.dstack((f, alpha_channel))  # Add alpha channel, now f is RGBA
+        
+        # Draw each contour with specified color and thickness
+        for i, contour in enumerate(contours):
+            color = color_for_number(i) if contour_color_function is None else contour_color_function(i, contours[i])
+            color_with_alpha = (*color, 255)  # Add full opacity to color
+            cv.drawContours(f, contours, contourIdx=i, color=color_with_alpha, thickness=contour_thickness)
+        
+        # Draw contour labels if provided
+        if contour_labels:
+            for label, contour in zip(contour_labels, contours):
+                y, x = centroid(contour)
+                f = text_on_frame(f, label, (x+10, y+10), color=(255, 255, 255, 255))  # White text with full opacity
+
+    # Apply cropping if specified
+    if dinfo.crop is not None:
+        (x0, x1), (y0, y1) = dinfo.crop
+        f = f[y0:y1, x0:x1]
+
+    # Plot live plot if enabled
+    if dinfo.live_plot:
+        if new_figure:
+            plt.figure(figsize=(25, 10), dpi=80)
+
+        plt.imshow(f, cmap='gray')
+        plt.title(dinfo.label, color='w')
+        plt.xticks([]), plt.yticks([])
+        plt.tight_layout()
+
+    # Save to file if specified
+    if dinfo.file_plot:
+        im = Image.fromarray(f, 'RGBA')
+        im.save(os.path.join(dinfo.image_dir, dinfo.label + '.png'))
 
 '''
 Plot masks with color corresponding to cell area
